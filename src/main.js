@@ -3,6 +3,7 @@ import {authenticateJsonRequest} from "./auth.js";
 import {ensurePlayer,debit} from "./db.js";
 import {playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
 import {playFairClassic,playFairMega,playFairAdvanced,playFairMore,playFairJackpot} from "./slot-fairness.js";
+import {playBonusBuy} from "./bonus-engine.js";
 import {jackpotStatus} from "./jackpot-slot.js";
 import {recordJackpotLoss} from "./jackpot-bank.js";
 import {requestVirtualChips} from "./virtual-chips.js";
@@ -159,6 +160,11 @@ async function handleCasinoApi(request,env,url){
   const {auth,userId,body}=a;
 
   try{
+    if(url.pathname==="/api/casino/bonus-buy"){
+      const result=await playBonusBuy(env,userId,body.slotId,body.bet,body.tier,body.requestId||crypto.randomUUID());
+      const status=await recordJackpotLoss(env,userId,result.roundId,result.cost,result.payout,`BONUS_BUY_${String(body.slotId||"")}`);
+      return json({ok:true,...result,jackpotPool:status.pool,jackpotAdded:status.added});
+    }
     if(url.pathname==="/api/casino/slots"){
       const result=await playFairClassic(env,userId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,"SLOTS")});
