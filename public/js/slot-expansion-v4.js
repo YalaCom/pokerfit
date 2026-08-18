@@ -4,7 +4,7 @@ const WILD="🃏",SCATTER="🌟";
 const catalog={
   moon5:{title:"MOONLIGHT RICHES",icon:"🌙",size:"3×5",rows:3,cols:5,lines:25,risk:"MEDIUM",accent:"moon",summary:"Ночной линейный слот с растущим множителем во фриспинах.",bonusTitle:"MOON ASCENSION",bonus:"3+ SCATTER запускают 6 фриспинов. WILD остаются на поле, а множитель бонуса растёт с каждым вращением.",symbols:["🌙","🔮","💎","🦉","👑","🌌",WILD,SCATTER]},
   dragon6:{title:"DRAGON FIRE",icon:"🐉",size:"4×6",rows:4,cols:6,lines:30,risk:"HIGH",accent:"dragon",summary:"Огненный слот на 24 клетки с длинными линиями и липкими WILD.",bonusTitle:"DRAGON RESPINS",bonus:"4+ SCATTER запускают бонус. Каждый новый WILD фиксируется и добавляет дополнительное вращение.",symbols:["🔥","🪙","🏮","🐉","💎","👑",WILD,SCATTER]},
-  grandjackpot:{title:"GRAND FORTUNE",icon:"💰",size:"3×5",rows:3,cols:5,lines:20,risk:"JACKPOT",accent:"jackpot",summary:"Премиальный слот с общим виртуальным Jackpot-банком клуба.",bonusTitle:"GRAND JACKPOT",bonus:"Каждое вращение немного увеличивает общий виртуальный банк. Сам Jackpot выпадает экстремально редко — примерно 1 шанс из 250 000 вращений.",symbols:["🍒","🔔","💎","👑","7️⃣",WILD,SCATTER,"💰"]}
+  grandjackpot:{title:"GRAND FORTUNE",icon:"💰",size:"3×5",rows:3,cols:5,lines:20,risk:"JACKPOT",accent:"jackpot",summary:"Отдельный Jackpot-slot. Общий банк растёт только на чистые проигрыши игроков в играх казино.",bonusTitle:"FORTUNE VAULT",bonus:"3+ SCATTER 🌟 запускают 6 фриспинов. WILD 🃏 остаются на поле. Каждый 💰 в бонусе повышает множитель на +0.20×, а каждые 3 символа 💰 дают +1 дополнительный спин. GRAND JACKPOT выпадает крайне редко — примерно 1 шанс из 250 000 вращений — и забирает весь накопленный банк.",symbols:["🍒","🔔","💎","👑","7️⃣",WILD,SCATTER,"💰"]}
 };
 let installed=false,busy=false,observer=null;
 
@@ -18,7 +18,7 @@ function enhance(){installTiles();installWalletBar();installFixedDock();}
 
 function installTiles(){
   const grid=document.querySelector("#casinoLobby .casino-grid");if(!grid)return;
-  const defs=[["moon5","🌙 MOONLIGHT RICHES","3×5 • 25 линий • Moon Ascension","NEW"],["dragon6","🐉 DRAGON FIRE","4×6 • 30 линий • Sticky Respins","HOT"],["grandjackpot","💰 GRAND FORTUNE","3×5 • общий Jackpot банка","JACKPOT"]];
+  const defs=[["moon5","🌙 MOONLIGHT RICHES","3×5 • 25 линий • Moon Ascension","NEW"],["dragon6","🐉 DRAGON FIRE","4×6 • 30 линий • Sticky Respins","HOT"],["grandjackpot","💰 GRAND FORTUNE","3×5 • Fortune Vault • общий Jackpot","JACKPOT"]];
   for(const [id,title,desc,badge] of defs){
     if(grid.querySelector(`[data-casino-game="${id}"]`))continue;
     const b=document.createElement("button");b.dataset.casinoGame=id;b.dataset.category="slots";b.className=`v4-slot-tile v4-${id}`;
@@ -46,8 +46,8 @@ async function requestExchange(kind){
   try{
     const d=await api(kind==="topup"?"/api/friend-exchange/topup":"/api/friend-exchange/withdraw");
     if(d.alreadyPending)toast("Такая заявка уже ждёт подтверждения");
-    else toast(kind==="topup"?"Пополнение 500K за 1 ₽ отправлено на подтверждение":"1M фишек списан и добавлен в Jackpot. Вывод на 1 ₽ ждёт подтверждения");
-    if(kind==="withdraw"){await refreshBootstrap();await refreshJackpotPool();}
+    else toast(kind==="topup"?"Пополнение 500K за 1 ₽ отправлено на подтверждение":"1M фишек списан. Вывод на 1 ₽ ждёт подтверждения");
+    if(kind==="withdraw")await refreshBootstrap();
     haptic("success");
   }catch(e){toast(e.message==="INSUFFICIENT_FUNDS"?"Для вывода нужен баланс минимум 1M":e.message);}
   finally{button.disabled=false;}
@@ -62,7 +62,7 @@ function capture(e){
 function showInfo(id){
   const c=catalog[id],lobby=$("casinoLobby"),panel=$("casinoGamePanel"),body=$("casinoGameBody"),title=$("casinoGameTitle");if(!c||!lobby||!panel||!body)return;
   lobby.classList.add("hidden");panel.classList.remove("hidden");title.textContent=`${c.icon} ${c.title}`;
-  body.innerHTML=`<article class="slot-info-card v4-info-${c.accent}"><div class="slot-info-art"><span>${c.icon}</span><i>${c.size}</i></div><div class="slot-info-kicker">FIT CASINO • SLOT INFO</div><h3>${c.title}</h3><p>${c.summary}</p><div class="slot-info-stats"><div><small>ПОЛЕ</small><b>${c.size}</b></div><div><small>ЛИНИИ</small><b>${c.lines}</b></div><div><small>РИСК</small><b>${c.risk}</b></div></div><div class="slot-info-symbols">${c.symbols.join(" ")}</div><div class="slot-bonus-info"><small>${c.bonusTitle}</small><b>${c.bonus}</b></div>${id==="grandjackpot"?'<div class="jackpot-info-pool"><small>ТЕКУЩИЙ ВИРТУАЛЬНЫЙ БАНК</small><strong id="infoJackpotPool">ЗАГРУЗКА…</strong></div>':""}<button id="v4InfoPlay" class="casino-main-btn">ИГРАТЬ ${c.icon}</button></article>`;
+  body.innerHTML=`<article class="slot-info-card v4-info-${c.accent}"><div class="slot-info-art"><span>${c.icon}</span><i>${c.size}</i></div><div class="slot-info-kicker">FIT CASINO • SLOT INFO</div><h3>${c.title}</h3><p>${c.summary}</p><div class="slot-info-stats"><div><small>ПОЛЕ</small><b>${c.size}</b></div><div><small>ЛИНИИ</small><b>${c.lines}</b></div><div><small>РИСК</small><b>${c.risk}</b></div></div><div class="slot-info-symbols">${c.symbols.join(" ")}</div><div class="slot-bonus-info"><small>${c.bonusTitle}</small><b>${c.bonus}</b></div>${id==="grandjackpot"?'<div class="jackpot-info-pool"><small>ТЕКУЩИЙ JACKPOT-БАНК</small><strong id="infoJackpotPool">ЗАГРУЗКА…</strong></div>':""}<button id="v4InfoPlay" class="casino-main-btn">ИГРАТЬ ${c.icon}</button></article>`;
   if(id==="grandjackpot")api("/api/casino/jackpot/status").then(d=>{if($("infoJackpotPool"))$("infoJackpotPool").textContent=`${Number(d.pool).toLocaleString("ru-RU")} CHIPS`;}).catch(()=>{});
   $("v4InfoPlay").onclick=()=>renderSlot(id);
 }
@@ -82,15 +82,26 @@ async function spin(id){
   try{
     const path=id==="grandjackpot"?"/api/casino/jackpot/spin":"/api/casino/more-slot/spin",payload=id==="grandjackpot"?{bet:amount,requestId:crypto.randomUUID()}:{slotId:id,bet:amount,requestId:crypto.randomUUID()};
     const d=await api(path,payload);await animate(d.result.grid,catalog[id],520);drawLines(d.result.base?.lines||[],catalog[id]);
-    if(id!=="grandjackpot"&&d.result.bonusTriggered&&d.result.bonus){setResult(d.result.base?.payout||0,`🌟 ${d.result.bonus.name} АКТИВИРОВАН`);slotFx("bonus");await wait(650);await animateBonus(d.result.bonus,catalog[id]);}
+    if(d.result.bonusTriggered&&d.result.bonus){setResult(d.result.base?.payout||0,`🌟 ${d.result.bonus.name} АКТИВИРОВАН`);slotFx("bonus");await wait(650);await animateBonus(d.result.bonus,catalog[id]);}
     if(id==="grandjackpot"&&d.result.jackpotHit){setResult(d.payout,`💰 GRAND JACKPOT ${chipsShort(d.result.jackpotPayout)}!`);slotFx("jackpot");confetti();haptic("success");await wait(850);}else if(d.payout>amount){setResult(d.payout,`WIN ${chipsShort(d.payout)} • ×${Number(d.multiplier||0).toFixed(2)}`);sound("win");confetti();}else if(d.payout>0){setResult(d.payout,`RETURN ${chipsShort(d.payout)}`);sound("click");}else{setResult(0,"NO WIN");sound("lose");slotFx("lose");}
-    await refreshBootstrap();if(id==="grandjackpot"){await refreshGameJackpot();await refreshJackpotPool();}
+    await refreshBootstrap();await refreshJackpotPool();if(id==="grandjackpot")await refreshGameJackpot();
   }catch(e){toast(e.message)}finally{busy=false;btn.disabled=false;}
 }
 
 async function animateBonus(bonus,c){
   const hud=$("v4BonusHud");hud?.classList.remove("hidden");let locked=new Set((bonus.initialSticky||[]).map(x=>x.join(":")));
-  for(let i=0;i<(bonus.frames||[]).length;i++){const f=bonus.frames[i];if($("v4BonusSpin"))$("v4BonusSpin").textContent=`SPIN ${i+1}/${bonus.frames.length}`;if($("v4BonusMult"))$("v4BonusMult").textContent=`${Number(f.bonusMultiplier||1).toFixed(2)}×`;clearVisuals(false);await animate(f.grid,c,330,locked);locked=new Set((f.sticky||[]).map(x=>x.join(":")));markSticky(locked,c,f.newSticky||[]);drawLines(f.lines||[],c);setResult(f.payout,`BONUS • +${chipsShort(f.payout||0)}${(f.newSticky||[]).length?` • NEW WILD ${(f.newSticky||[]).length}`:""}`);if((f.newSticky||[]).length)slotFx("wild");await wait(280);}hud?.classList.add("hidden");
+  for(let i=0;i<(bonus.frames||[]).length;i++){
+    const f=bonus.frames[i];
+    if($("v4BonusSpin"))$("v4BonusSpin").textContent=`SPIN ${i+1}/${bonus.frames.length}`;
+    if($("v4BonusMult"))$("v4BonusMult").textContent=`${Number(f.bonusMultiplier||1).toFixed(2)}×`;
+    clearVisuals(false);await animate(f.grid,c,330,locked);locked=new Set((f.sticky||[]).map(x=>x.join(":")));markSticky(locked,c,f.newSticky||[]);drawLines(f.lines||[],c);
+    let detail=`BONUS • +${chipsShort(f.payout||0)}`;
+    if((f.newSticky||[]).length)detail+=` • NEW WILD ${(f.newSticky||[]).length}`;
+    if(Number(f.moneyThisSpin||0)>0)detail+=` • 💰 ${Number(f.moneyCollected||0)}`;
+    if(Number(f.addedSpins||0)>0)detail+=` • +${Number(f.addedSpins)} SPIN`;
+    setResult(f.payout,detail);if((f.newSticky||[]).length)slotFx("wild");await wait(280);
+  }
+  hud?.classList.add("hidden");
 }
 
 async function animate(grid,c,duration=520,locked=new Set()){
