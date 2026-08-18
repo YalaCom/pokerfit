@@ -9,40 +9,57 @@ const catalog={
   vault5:{title:"GOLDEN VAULT",icon:"👑",size:"5×5",rows:5,cols:5,lines:25,volatility:"VERY HIGH",summary:"Высоковолатильный золотой слот с большим потенциалом бонуса.",bonusTitle:"VAULT LOCK",bonus:"3+ SCATTER 🌟 запускают 7 фриспинов. WILD 🃏 остаются. Каждый 4-й закреплённый WILD открывает GOLD LOCK: ещё одна клетка становится WILD и добавляется +1 фриспин.",symbols:["🪙","🏺","🐍","🦂","💎","👑",WILD,SCATTER],accent:"gold"}
 };
 
-let installed=false,bypass=null,busy=false;
+let installed=false,busy=false,observer=null;
 
 export function initAdvancedSlots(){
-  if(!installed){document.addEventListener("click",captureSlotClick,true);installed=true;}
+  if(installed)return;installed=true;
   installTiles();
-  const observer=new MutationObserver(installTiles);observer.observe(document.body,{childList:true,subtree:true});
+  observer=new MutationObserver(installTiles);observer.observe(document.body,{childList:true,subtree:true});
 }
 
 function installTiles(){
   const grid=document.querySelector("#casinoLobby .casino-grid");if(!grid)return;
+  bindLegacyTiles(grid);
   const entries=[
     ["royal5","🍒 ROYAL FRUITS","3×5 • 20 линий • Sticky Wild","HOT"],
     ["neon8","⚡ NEON EMPIRE","4×8 • 40 линий • Wild Reactor","WIDE"],
     ["vault5","👑 GOLDEN VAULT","5×5 • 25 линий • Vault Lock","BONUS"]
   ];
   for(const [id,title,desc,badge] of entries){
-    if(grid.querySelector(`[data-casino-game="${id}"]`))continue;
-    const tile=document.createElement("button");tile.dataset.casinoGame=id;tile.dataset.category="slots";tile.className=`advanced-slot-tile adv-${id}`;
-    tile.innerHTML=`<b>${title}</b><small>${desc}</small><em>${badge}</em><span class="slot-preview-mini">${catalog[id].symbols.slice(0,5).join(" ")}</span>`;
-    const mega=grid.querySelector('[data-casino-game="mega"]');
-    if(mega)mega.insertAdjacentElement("afterend",tile);else grid.prepend(tile);
+    let tile=grid.querySelector(`[data-casino-game="${id}"]`);
+    if(!tile){
+      tile=document.createElement("button");tile.dataset.casinoGame=id;tile.dataset.category="slots";tile.className=`advanced-slot-tile adv-${id}`;
+      tile.innerHTML=`<b>${title}</b><small>${desc}</small><em>${badge}</em><span class="slot-preview-mini">${catalog[id].symbols.slice(0,5).join(" ")}</span>`;
+      const mega=grid.querySelector('[data-casino-game="mega"]');
+      if(mega)mega.insertAdjacentElement("afterend",tile);else grid.prepend(tile);
+    }
+    bindAdvancedTile(tile,id);
   }
 }
 
-function captureSlotClick(event){
-  const tile=event.target.closest?.("#casinoLobby [data-casino-game]");if(!tile)return;
-  const game=tile.dataset.casinoGame;if(!catalog[game])return;
-  if(bypass===game){bypass=null;return;}
-  event.preventDefault();event.stopImmediatePropagation();showSlotInfo(game,tile);
+function bindLegacyTiles(grid){
+  for(const game of ["slots","mega"]){
+    const tile=grid.querySelector(`[data-casino-game="${game}"]`);if(!tile||tile.dataset.slotInfoBound)return;
+    tile.dataset.slotInfoBound="1";
+    tile.addEventListener("click",event=>{
+      if(tile.dataset.slotInfoBypass==="1"){delete tile.dataset.slotInfoBypass;return;}
+      event.preventDefault();event.stopImmediatePropagation();safeShowSlotInfo(game,tile);
+    },true);
+  }
+}
+
+function bindAdvancedTile(tile,id){
+  if(!tile||tile.dataset.slotInfoBound)return;tile.dataset.slotInfoBound="1";
+  tile.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();safeShowSlotInfo(id,tile);});
+}
+
+function safeShowSlotInfo(game,tile){
+  try{showSlotInfo(game,tile);}catch(error){console.error("SLOT_INFO",game,error);toast("Не удалось открыть слот. Попробуй ещё раз.");}
 }
 
 function showSlotInfo(game,tile){
   const info=catalog[game],lobby=$("casinoLobby"),panel=$("casinoGamePanel"),body=$("casinoGameBody"),title=$("casinoGameTitle");if(!info||!lobby||!panel||!body)return;
-  lobby.classList.add("hidden");panel.classList.remove("hidden");title.textContent=`${info.icon} ${info.title}`;
+  lobby.classList.add("hidden");panel.classList.remove("hidden");if(title)title.textContent=`${info.icon} ${info.title}`;
   const lines=typeof info.lines==="number"?`${info.lines} PAYLINES`:info.lines;
   body.innerHTML=`
     <article class="slot-info-card slot-info-${info.accent||"classic"}">
@@ -55,15 +72,18 @@ function showSlotInfo(game,tile){
       ${!info.legacy?`<div class="slot-rule-row"><span><i>${WILD}</i><b>WILD</b><small>заменяет символы и остаётся липким в бонусе</small></span><span><i>${SCATTER}</i><b>SCATTER</b><small>запускает бонус независимо от линии</small></span></div>`:""}
       <button id="slotInfoPlay" class="casino-main-btn slot-info-play">ИГРАТЬ ${info.icon}</button>
     </article>`;
-  $("slotInfoPlay").onclick=()=>{
-    if(info.legacy){bypass=game;tile.click();return;}
-    renderAdvancedSlot(game);
+  const play=$("slotInfoPlay");if(!play)return;
+  play.onclick=()=>{
+    try{
+      if(info.legacy){tile.dataset.slotInfoBypass="1";tile.click();return;}
+      renderAdvancedSlot(game);
+    }catch(error){console.error("SLOT_PLAY",game,error);toast("Ошибка запуска слота");}
   };
 }
 
 function renderAdvancedSlot(id){
   const cfg=catalog[id],body=$("casinoGameBody"),title=$("casinoGameTitle");if(!cfg||!body)return;
-  title.textContent=`${cfg.icon} ${cfg.title}`;
+  if(title)title.textContent=`${cfg.icon} ${cfg.title}`;
   const cells=Array.from({length:cfg.rows*cfg.cols},(_,i)=>`<div class="adv-slot-cell" data-adv-cell="${i}">${cfg.symbols[i%Math.min(6,cfg.symbols.length)]}</div>`).join("");
   body.innerHTML=`
     <div class="adv-slot-cabinet adv-theme-${cfg.accent}">
@@ -78,16 +98,16 @@ function renderAdvancedSlot(id){
     </div>
     ${betBox()}
     <button id="advSpinButton" class="casino-main-btn adv-spin-button">SPIN ${cfg.icon}</button>`;
-  bindBet();$("advSpinButton").onclick=()=>spinAdvanced(id);
+  bindBet();const spin=$("advSpinButton");if(spin)spin.onclick=()=>spinAdvanced(id);
 }
 
 function betBox(){return `<div class="casino-bet"><label>СТАВКА</label><input id="casinoBet" type="number" min="1000" max="5000000" step="1000" value="20000" inputmode="numeric"><div class="casino-presets"><button data-cbet="10000">10K</button><button data-cbet="50000">50K</button><button data-cbet="100000">100K</button><button data-cbet="500000">500K</button></div></div>`;}
-function bindBet(){document.querySelectorAll("[data-cbet]").forEach(b=>b.onclick=()=>{$("casinoBet").value=b.dataset.cbet;});}
+function bindBet(){document.querySelectorAll("[data-cbet]").forEach(b=>b.onclick=()=>{const input=$("casinoBet");if(input)input.value=b.dataset.cbet;});}
 function readBet(){const n=Math.floor(Number($("casinoBet")?.value||0));if(n<1000)throw new Error("Минимальная ставка 1K");if(n>5_000_000)throw new Error("Максимальная ставка 5M");if(n>Number(state.player?.balance||0))throw new Error("Недостаточно фишек");return n;}
 
 async function spinAdvanced(id){
   if(busy)return;const cfg=catalog[id];let amount;try{amount=readBet();}catch(e){return toast(e.message)}
-  const btn=$("advSpinButton");busy=true;btn.disabled=true;clearWins();haptic("medium");sound("click");
+  const btn=$("advSpinButton");if(!btn)return;busy=true;btn.disabled=true;clearWins();haptic("medium");sound("click");
   try{
     const d=await api("/api/casino/advanced-slot/spin",{slotId:id,bet:amount,requestId:crypto.randomUUID()});
     await animateGrid(d.result.grid,cfg,new Set(),650);drawWins(d.result.base?.lines||[],cfg);
@@ -96,17 +116,17 @@ async function spinAdvanced(id){
     const finalText=d.payout?`TOTAL WIN ${chipsShort(d.payout)} • ×${Number(d.multiplier).toFixed(2)}`:"НЕТ ВЫИГРЫША";
     setResult(d.payout,finalText);if(d.payout>amount){confetti();sound("win");haptic("success");}else sound("lose");
     await refreshBootstrap();
-  }catch(e){toast(e.message)}finally{busy=false;btn.disabled=false;}
+  }catch(e){console.error("ADV_SLOT_SPIN",id,e);toast(e.message)}finally{busy=false;btn.disabled=false;}
 }
 
 async function playBonus(bonus,cfg){
-  const hud=$("advBonusHud");hud.classList.remove("hidden");hud.classList.add("bonus-pop");
-  $("casinoResult").textContent=`🌟 ${bonus.name} АКТИВИРОВАН • ${bonus.totalSpins} FREE SPINS`;
+  const hud=$("advBonusHud");if(!hud)return;hud.classList.remove("hidden");hud.classList.add("bonus-pop");
+  if($("casinoResult"))$("casinoResult").textContent=`🌟 ${bonus.name} АКТИВИРОВАН • ${bonus.totalSpins} FREE SPINS`;
   haptic("success");sound("win");await wait(850);
   let locked=new Set((bonus.initialSticky||[]).map(([r,c])=>`${r}:${c}`));
   markSticky(locked,cfg);
   for(let i=0;i<bonus.frames.length;i++){
-    const frame=bonus.frames[i];$("advFreeSpins").textContent=`SPIN ${i+1}/${bonus.frames.length}`;$("advBonusMultiplier").textContent=`${Number(frame.bonusMultiplier||1).toFixed(2)}×`;
+    const frame=bonus.frames[i];if($("advFreeSpins"))$("advFreeSpins").textContent=`SPIN ${i+1}/${bonus.frames.length}`;if($("advBonusMultiplier"))$("advBonusMultiplier").textContent=`${Number(frame.bonusMultiplier||1).toFixed(2)}×`;
     clearWins(false);await animateGrid(frame.grid,cfg,locked,420);
     const next=new Set((frame.sticky||[]).map(([r,c])=>`${r}:${c}`));markSticky(next,cfg,frame.newSticky||[],frame.lockAdded);
     drawWins(frame.lines||[],cfg);locked=next;
@@ -116,7 +136,7 @@ async function playBonus(bonus,cfg){
     if(frame.lockAdded)msg+=` • GOLD LOCK`;
     setResult(frame.payout,msg);await wait(430);
   }
-  $("advFreeSpins").textContent="BONUS COMPLETE";$("advBonusMultiplier").textContent=`${Number(bonus.finalMultiplier||1).toFixed(2)}×`;await wait(500);hud.classList.add("hidden");
+  if($("advFreeSpins"))$("advFreeSpins").textContent="BONUS COMPLETE";if($("advBonusMultiplier"))$("advBonusMultiplier").textContent=`${Number(bonus.finalMultiplier||1).toFixed(2)}×`;await wait(500);hud.classList.add("hidden");
 }
 
 async function animateGrid(grid,cfg,locked,duration){
@@ -124,7 +144,7 @@ async function animateGrid(grid,cfg,locked,duration){
   cells.forEach((cell,i)=>{const r=Math.floor(i/cfg.cols),c=i%cfg.cols;if(locked.has(`${r}:${c}`))return;cell.classList.add("spinning");timers[i]=setInterval(()=>cell.textContent=symbols[Math.floor(Math.random()*symbols.length)],45+(c%4)*5);});
   await wait(duration);
   for(let c=0;c<cfg.cols;c++){
-    for(let r=0;r<cfg.rows;r++){const i=r*cfg.cols+c;if(timers[i]){clearInterval(timers[i]);cells[i].textContent=grid[r][c];cells[i].classList.remove("spinning");cells[i].classList.add("land");setTimeout(()=>cells[i].classList.remove("land"),220);}}
+    for(let r=0;r<cfg.rows;r++){const i=r*cfg.cols+c;if(timers[i]&&cells[i]){clearInterval(timers[i]);cells[i].textContent=grid?.[r]?.[c]??"?";cells[i].classList.remove("spinning");cells[i].classList.add("land");setTimeout(()=>cells[i]?.classList.remove("land"),220);}}
     haptic("light");await wait(Math.max(28,90-cfg.cols*5));
   }
   timers.forEach(t=>t&&clearInterval(t));
@@ -140,11 +160,11 @@ function markSticky(sticky,cfg,newSticky=[],lockAdded=null){
 function drawWins(lines,cfg){
   const svg=$("advPaylineSvg");if(!svg)return;svg.innerHTML="";
   for(const win of lines.slice(0,10)){
-    const pts=win.rows.slice(0,win.count).map((row,col)=>`${50+col*100},${50+row*100}`).join(" ");
+    const pts=(win.rows||[]).slice(0,win.count).map((row,col)=>`${50+col*100},${50+row*100}`).join(" ");
     svg.insertAdjacentHTML("beforeend",`<polyline points="${pts}" class="adv-winning-line"></polyline>`);
-    win.rows.slice(0,win.count).forEach((row,col)=>document.querySelector(`[data-adv-cell="${row*cfg.cols+col}"]`)?.classList.add("line-win"));
+    (win.rows||[]).slice(0,win.count).forEach((row,col)=>document.querySelector(`[data-adv-cell="${row*cfg.cols+col}"]`)?.classList.add("line-win"));
   }
 }
-function clearWins(clearSticky=true){$("advPaylineSvg")&&($("advPaylineSvg").innerHTML="");document.querySelectorAll(".adv-slot-cell").forEach(c=>{c.classList.remove("line-win","new-sticky","gold-lock");if(clearSticky)c.classList.remove("sticky-wild");});}
+function clearWins(clearSticky=true){if($("advPaylineSvg"))$("advPaylineSvg").innerHTML="";document.querySelectorAll(".adv-slot-cell").forEach(c=>{c.classList.remove("line-win","new-sticky","gold-lock");if(clearSticky)c.classList.remove("sticky-wild");});}
 function setResult(payout,text){const el=$("casinoResult");if(!el)return;el.textContent=text;el.className=`casino-result ${payout>0?"win":"lose"}`;}
 function wait(ms){return new Promise(r=>setTimeout(r,ms));}
