@@ -15,7 +15,11 @@ export async function joinRouletteRoom(env,userId,tgUser,body={}){
   const room=await env.DB.prepare(`SELECT * FROM casino_roulette_rooms WHERE room_code=?1 AND status IN ('waiting','playing') LIMIT 1`).bind(code).first();
   if(!room)throw new Error("ROOM_NOT_FOUND");
   const own=await env.DB.prepare(`SELECT status FROM casino_roulette_sessions WHERE room_id=?1 AND telegram_id=?2 LIMIT 1`).bind(room.id,userId).first();
-  if(!own){await ensureNoOtherActiveRoom(env,userId);if(Number(room.current_players)>=Number(room.max_players))throw new Error("ROOM_FULL");}
+  if(!own){
+    if(room.status!=="waiting")throw new Error("ROUND_ALREADY_STARTED");
+    await ensureNoOtherActiveRoom(env,userId);
+    if(Number(room.current_players)>=Number(room.max_players))throw new Error("ROOM_FULL");
+  }
   return {room:normalizeRoom(room),connectToken:await makeToken(env,{roomId:room.id,user:tokenUser(tgUser),exp:Date.now()+300000})};
 }
 
@@ -62,7 +66,10 @@ export class RussianRouletteDO{
     const a=ws.deserializeAttachment()||{},userId=String(a.userId||"");
     try{if(data.type==="start")return await this.start(userId);if(data.type==="pull")return await this.pull(userId,false);if(data.type==="leave")return await this.leave(userId);}catch(error){this.send(ws,{type:"error",error:String(error?.message||"ACTION_FAILED")});}
   }
-  async webSocketClose(ws){await this.ready;const a=ws.deserializeAttachment()||{},p=this.state?.players.find(x=>x.id===String(a.userId));if(p){p.connected=false;await this.persist();await this.broadcast();}}
+  async webSocketClose(ws){
+    await this.ready;const a=ws.deserializeAttachment()||{},userId=String(a.userId||""),p=this.state?.players.find(x=>x.id===userId);if(!p)return;
+    if(this.state.status==="waiting"){try{await this.leave(userId);}catch{}}else{p.connected=false;await this.persist();await this.broadcast();}
+  }
   async webSocketError(ws){return this.webSocketClose(ws);}
   async start(userId){
     if(this.state.status!=="waiting")throw new Error("ALREADY_STARTED");if(this.state.players.length<2)throw new Error("NEED_TWO_PLAYERS");if(userId!==this.state.creatorId&&this.state.players.length<this.state.maxPlayers)throw new Error("ONLY_CREATOR_CAN_START_EARLY");
