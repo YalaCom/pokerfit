@@ -1,13 +1,13 @@
 import {debit,credit,zeroLedger,getBalance} from "./db.js";
 
-const MIN_BET=1000,MAX_BET=5_000_000,MAX_WIN_MULTIPLIER=5000;
+const MIN_BET=1000,MAX_BET=5_000_000,MAX_WIN_MULTIPLIER=1000;
 const WILD="🃏",SCATTER="🌟";
 
 export const ADVANCED_SLOT_CONFIGS={
   royal5:{
     id:"royal5",name:"ROYAL FRUITS",rows:3,cols:5,lineCount:20,volatility:"MEDIUM",
     symbols:["🍒","🍋","🍇","🔔","💎","7️⃣",WILD,SCATTER],
-    weights:[28,24,19,13,8,4,2.4,1.6],bonusWeights:[23,21,17,12,8,4,12,3],
+    weights:[28,24,19,13,8,4,2.4,1.0],bonusWeights:[23,21,17,12,8,4,12,3],
     scatterTrigger:3,bonusName:"STICKY PARTY",bonusSpins:7,
     paytable:{
       "🍒":{3:1.2,4:3,5:8},"🍋":{3:1.5,4:4,5:10},"🍇":{3:2,4:6,5:16},
@@ -20,7 +20,7 @@ export const ADVANCED_SLOT_CONFIGS={
   neon8:{
     id:"neon8",name:"NEON EMPIRE",rows:4,cols:8,lineCount:40,volatility:"HIGH",
     symbols:["⚡","💿","💎","👑","🔥","8️⃣",WILD,SCATTER],
-    weights:[27,23,18,12,8,4.5,2.6,1.2],bonusWeights:[21,18,15,11,8,4,16,2],
+    weights:[27,23,18,12,8,4.5,2.6,.8],bonusWeights:[21,18,15,11,8,4,16,2],
     scatterTrigger:4,bonusName:"WILD REACTOR",bonusSpins:6,
     paytable:{
       "⚡":{3:.7,4:1.2,5:2.5,6:5,7:10,8:20},"💿":{3:.8,4:1.5,5:3,6:7,7:14,8:30},
@@ -34,7 +34,7 @@ export const ADVANCED_SLOT_CONFIGS={
   vault5:{
     id:"vault5",name:"GOLDEN VAULT",rows:5,cols:5,lineCount:25,volatility:"VERY HIGH",
     symbols:["🪙","🏺","🐍","🦂","💎","👑",WILD,SCATTER],
-    weights:[29,23,17,12,8,4,2.5,1.5],bonusWeights:[22,18,14,10,7,4,18,2],
+    weights:[29,23,17,12,8,4,2.5,1.0],bonusWeights:[22,18,14,10,7,4,18,2],
     scatterTrigger:3,bonusName:"VAULT LOCK",bonusSpins:7,
     paytable:{
       "🪙":{3:1,4:3,5:10},"🏺":{3:1.4,4:5,5:16},"🐍":{3:2,4:7,5:24},
@@ -65,7 +65,7 @@ export async function playAdvancedSlot(env,userId,slotId,bet,requestId){
   const result={
     slotId:cfg.id,name:cfg.name,rows:cfg.rows,cols:cfg.cols,lineCount:cfg.lineCount,
     grid:baseGrid,base:{...base,payout:Math.min(base.payout,payout)},bonus,
-    bonusTriggered:triggered,payout,multiplier,capped:rawPayout>cap
+    bonusTriggered:triggered,payout,multiplier,capped:rawPayout>cap,maxWin:cap
   };
   const metadata={game:`ADV_SLOT_${cfg.id}`,roundId,bet,payout,multiplier,result};
   const d=await debit(env,userId,bet,`CASINO_ADV_SLOT_${cfg.id}_BET`,betKey,metadata);
@@ -73,7 +73,7 @@ export async function playAdvancedSlot(env,userId,slotId,bet,requestId){
   let balance=d.balance;
   if(payout>0){const c=await credit(env,userId,payout,`CASINO_ADV_SLOT_${cfg.id}_PAYOUT`,`casino:ADV_SLOT:${cfg.id}:payout:${roundId}`,metadata);balance=c.balance;}
   else await zeroLedger(env,userId,`CASINO_ADV_SLOT_${cfg.id}_RESULT`,`casino:ADV_SLOT:${cfg.id}:result:${roundId}`,metadata);
-  return {roundId,bet,payout,multiplier,result,balance};
+  return {roundId,bet,payout,multiplier,result,balance,maxWin:cap};
 }
 
 export function evaluateAdvancedGrid(configOrId,grid,bet=10000,bonusMultiplier=1){
@@ -158,4 +158,4 @@ function secureInt(max){max=Math.max(1,Math.floor(max));const ceiling=0x10000000
 function round2(v){return Math.floor(Number(v||0)*100)/100;}
 function safeJson(v){try{return JSON.parse(v||"{}");}catch{return{};}}
 async function getTransaction(env,key){return env.DB.prepare(`SELECT amount,metadata,balance_after FROM wallet_transactions WHERE idempotency_key=?1 LIMIT 1`).bind(key).first();}
-async function replay(env,userId,tx){const meta=safeJson(tx.metadata),payout=Number(meta.payout||0),payoutKey=`casino:ADV_SLOT:${meta.result?.slotId}:payout:${meta.roundId}`;if(payout>0)await credit(env,userId,payout,`CASINO_ADV_SLOT_${meta.result?.slotId}_PAYOUT`,payoutKey,meta);return {roundId:meta.roundId,bet:Number(meta.bet||0),payout,multiplier:Number(meta.multiplier||0),result:meta.result||{},balance:await getBalance(env,userId),duplicate:true};}
+async function replay(env,userId,tx){const meta=safeJson(tx.metadata),payout=Number(meta.payout||0),payoutKey=`casino:ADV_SLOT:${meta.result?.slotId}:payout:${meta.roundId}`;if(payout>0)await credit(env,userId,payout,`CASINO_ADV_SLOT_${meta.result?.slotId}_PAYOUT`,payoutKey,meta);return {roundId:meta.roundId,bet:Number(meta.bet||0),payout,multiplier:Number(meta.multiplier||0),result:meta.result||{},balance:await getBalance(env,userId),duplicate:true,maxWin:Number(meta.bet||0)*MAX_WIN_MULTIPLIER};}
