@@ -4,12 +4,13 @@ import {initBlackjack} from "./js/blackjack.js";
 import {initSocial,loadFeed,loadNotifications,loadTournaments,loadRating,loadFriends,loadRewards,loadProfile,startRescueIfNeeded} from "./js/social.js";
 import {initCasino,loadCasino} from "./js/casino.js";
 import {initPokerEnhancements} from "./js/poker-enhance.js";
+import {initLuxuryUI} from "./js/luxury-ui.js";
 
 boot();
 
 async function boot(){
   if(!tg?.initData)return fail("Открой FIT Poker через Telegram.");
-  tg.ready();tg.expand();state.initData=tg.initData;bindSettings();bindGlobal();initPoker();initBlackjack();initSocial();initCasino();initPokerEnhancements();
+  tg.ready();tg.expand();state.initData=tg.initData;bindSettings();bindGlobal();initPoker();initBlackjack();initSocial();initCasino();initPokerEnhancements();initLuxuryUI();
   registerView("tables",loadTables);registerView("tournaments",loadTournaments);registerView("rating",()=>loadRating("balance"));registerView("friends",loadFriends);registerView("rewards",loadRewards);registerView("profile",loadProfile);registerView("notifications",loadNotifications);registerView("casino",loadCasino);
   try{await refreshBootstrap();await Promise.allSettled([loadFeed(),loadNotifications()]);routeFromHash();$("app").classList.remove("hidden");setTimeout(()=>$("splash").classList.add("hide"),450);setTimeout(startRescueIfNeeded,650);}catch(error){fail(`Ошибка запуска: ${error.message}`);}
 }
