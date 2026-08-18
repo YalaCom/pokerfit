@@ -115,7 +115,7 @@ function filterCasino(grid,cat){
 
 function categoryFor(game){
   if(["roulette"].includes(game))return"live";
-  if(["slots","mega"].includes(game))return"slots";
+  if(["slots","mega","royal5","neon8","vault5"].includes(game))return"slots";
   if(["blackjack","baccarat"].includes(game))return"table";
   return"instant";
 }
