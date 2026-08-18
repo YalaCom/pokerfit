@@ -7,13 +7,13 @@ import {initPokerEnhancements} from "./js/poker-enhance.js";
 import {initLuxuryUI} from "./js/luxury-ui.js";
 import {initClubAgreement} from "./js/club-agreement.js";
 import {initMaxWinUI} from "./js/maxwin-ui.js";
-import {initSlotHotfix} from "./js/slot-hotfix.js";
+import {initSafeSlots} from "./js/safe-slots.js";
 
 boot();
 
 async function boot(){
   if(!tg?.initData)return fail("Открой FIT Poker через Telegram.");
-  tg.ready();tg.expand();state.initData=tg.initData;bindSettings();bindGlobal();initPoker();initBlackjack();initSocial();initCasino();initSlotHotfix();initPokerEnhancements();initLuxuryUI();initClubAgreement();initMaxWinUI();
+  tg.ready();tg.expand();state.initData=tg.initData;bindSettings();bindGlobal();initPoker();initBlackjack();initSocial();initCasino();initSafeSlots();initPokerEnhancements();initLuxuryUI();initClubAgreement();initMaxWinUI();
   registerView("tables",loadTables);registerView("tournaments",loadTournaments);registerView("rating",()=>loadRating("balance"));registerView("friends",loadFriends);registerView("rewards",loadRewards);registerView("profile",loadProfile);registerView("notifications",loadNotifications);registerView("casino",loadCasino);
   try{await refreshBootstrap();await Promise.allSettled([loadFeed(),loadNotifications()]);routeFromHash();$("app").classList.remove("hidden");setTimeout(()=>$("splash").classList.add("hide"),450);setTimeout(startRescueIfNeeded,650);}catch(error){fail(`Ошибка запуска: ${error.message}`);}
 }
