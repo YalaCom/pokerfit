@@ -1,6 +1,6 @@
 import baseWorker,{PokerTableDO as BasePokerTableDO} from "./index.js";
 import {authenticateJsonRequest} from "./auth.js";
-import {ensurePlayer} from "./db.js";
+import {ensurePlayer,debit} from "./db.js";
 import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
 import {playAdvancedSlot} from "./advanced-slots.js";
 import {playMoreSlot} from "./more-slots.js";
@@ -54,10 +54,25 @@ async function handleFriendExchangeApi(request,env,kind){
   try{return json({ok:true,...await createFriendExchangeRequest(env,a.userId,a.auth.user,kind)});}catch(error){console.error("friend exchange",kind,error);return json({ok:false,error:String(error?.message||"EXCHANGE_ERROR")},400);}
 }
 
-async function houseResult(env,userId,result,source){
+async function capCasinoResult(env,userId,result,source){
   if(!result?.roundId)return result;
-  const status=await recordJackpotLoss(env,userId,result.roundId,result.bet,result.payout,source);
-  return {...result,jackpotPool:status.pool,jackpotAdded:status.added};
+  const bet=Math.max(0,Math.floor(Number(result.bet)||0));if(!bet)return result;
+  const jackpotPart=source==="GRAND_FORTUNE"?Math.max(0,Math.floor(Number(result.result?.jackpotPayout)||0)):0;
+  const total=Math.max(0,Math.floor(Number(result.payout)||0));
+  const normal=Math.max(0,total-jackpotPart),maxNormal=bet*1000;
+  if(normal<=maxNormal)return result;
+  const excess=normal-maxNormal;
+  const d=await debit(env,userId,excess,"CASINO_MAX_WIN_CAP",`casino:maxwin:${source}:${result.roundId}`,{source,roundId:result.roundId,bet,maxWin:maxNormal,excess});
+  const payout=maxNormal+jackpotPart,multiplier=Math.floor((payout/Math.max(1,bet))*100)/100;
+  const nested=result.result?{...result.result,normalPayout:Math.min(maxNormal,Math.max(0,Number(result.result.normalPayout??normal))),multiplier,maxWin:maxNormal,maxWinHit:true}:result.result;
+  return {...result,payout,multiplier,balance:d.balance,result:nested,maxWin:maxNormal,maxWinHit:true};
+}
+
+async function houseResult(env,userId,result,source){
+  const capped=await capCasinoResult(env,userId,result,source);
+  if(!capped?.roundId)return capped;
+  const status=await recordJackpotLoss(env,userId,capped.roundId,capped.bet,capped.payout,source);
+  return {...capped,jackpotPool:status.pool,jackpotAdded:status.added,maxWin:Math.max(0,Number(capped.bet||0))*1000};
 }
 
 async function handleCasinoApi(request,env,url){
