@@ -15,12 +15,46 @@ export {RussianRouletteDO};
 
 export class PokerTableDO extends BasePokerTableDO{
   async webSocketMessage(ws,message){
-    let data;try{data=JSON.parse(typeof message==="string"?message:new TextDecoder().decode(message));}catch{return super.webSocketMessage(ws,message);}
+    let data;
+    try{
+      data=JSON.parse(typeof message==="string"?message:new TextDecoder().decode(message));
+    }catch{
+      return super.webSocketMessage(ws,message);
+    }
+
     if(data?.type!=="chat")return super.webSocketMessage(ws,message);
-    await this.ready;const attachment=ws.deserializeAttachment()||{};if(attachment.mode!=="player")return;
-    const now=Date.now();if(now-Number(attachment.lastChatAt||0)<3500)return this.send(ws,{type:"error",error:"CHAT_COOLDOWN"});
-    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY"});if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG"});
-    attachment.lastChatAt=now;ws.serializeAttachment(attachment);const seat=this.findSeat(attachment.userId);await this.broadcastEvent({type:"chat",userId:String(attachment.userId),name:seat?.name||"Игрок",text,at:now});
+
+    await this.ready;
+    const attachment=ws.deserializeAttachment()||{};
+    if(attachment.mode!=="player")return;
+
+    const now=Date.now();
+    if(now-Number(attachment.lastChatAt||0)<3500){
+      return this.send(ws,{type:"error",error:"CHAT_COOLDOWN"});
+    }
+
+    const text=String(data.text||"")
+      .replace(/[\u0000-\u001F\u007F]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+    if(!text){
+      return this.send(ws,{type:"error",error:"CHAT_EMPTY"});
+    }
+    if(text.length>60){
+      return this.send(ws,{type:"error",error:"CHAT_TOO_LONG"});
+    }
+
+    attachment.lastChatAt=now;
+    ws.serializeAttachment(attachment);
+    const seat=this.findSeat(attachment.userId);
+    await this.broadcastEvent({
+      type:"chat",
+      userId:String(attachment.userId),
+      name:seat?.name||"Игрок",
+      text,
+      at:now
+    });
   }
 }
 
@@ -34,37 +68,77 @@ export default{
     if(url.pathname.startsWith("/api/casino/"))return handleCasinoApi(request,env,url);
     return baseWorker.fetch(request,env,ctx);
   },
-  async scheduled(controller,env,ctx){return baseWorker.scheduled?.(controller,env,ctx);}
+  async scheduled(controller,env,ctx){
+    return baseWorker.scheduled?.(controller,env,ctx);
+  }
 };
 
 async function authenticatePlayer(request,env){
   if(request.method!=="POST")return {response:json({ok:false,error:"POST_REQUIRED"},405)};
-  const auth=await authenticateJsonRequest(request,env);if(!auth.ok)return {response:json({ok:false,error:auth.error},401)};
-  try{await ensurePlayer(env,auth.user);}catch(error){return {response:json({ok:false,error:String(error?.message||"PLAYER_ERROR")},403)};}
+  const auth=await authenticateJsonRequest(request,env);
+  if(!auth.ok)return {response:json({ok:false,error:auth.error},401)};
+  try{
+    await ensurePlayer(env,auth.user);
+  }catch(error){
+    return {response:json({ok:false,error:String(error?.message||"PLAYER_ERROR")},403)};
+  }
   return {auth,userId:String(auth.user.id),body:auth.body||{}};
 }
 
 async function handleVirtualChipApi(request,env){
-  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
-  try{return json({ok:true,...await requestVirtualChips(env,a.userId,a.auth.user)});}catch(error){console.error("virtual chips",error);return json({ok:false,error:String(error?.message||"REQUEST_ERROR")},400);}
+  const a=await authenticatePlayer(request,env);
+  if(a.response)return a.response;
+  try{
+    return json({ok:true,...await requestVirtualChips(env,a.userId,a.auth.user)});
+  }catch(error){
+    console.error("virtual chips",error);
+    return json({ok:false,error:String(error?.message||"REQUEST_ERROR")},400);
+  }
 }
 
 async function handleFriendExchangeApi(request,env,kind){
-  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
-  try{return json({ok:true,...await createFriendExchangeRequest(env,a.userId,a.auth.user,kind)});}catch(error){console.error("friend exchange",kind,error);return json({ok:false,error:String(error?.message||"EXCHANGE_ERROR")},400);}
+  const a=await authenticatePlayer(request,env);
+  if(a.response)return a.response;
+  try{
+    return json({ok:true,...await createFriendExchangeRequest(env,a.userId,a.auth.user,kind)});
+  }catch(error){
+    console.error("friend exchange",kind,error);
+    return json({ok:false,error:String(error?.message||"EXCHANGE_ERROR")},400);
+  }
 }
 
 async function capCasinoResult(env,userId,result,source){
   if(!result?.roundId)return result;
-  const bet=Math.max(0,Math.floor(Number(result.bet)||0));if(!bet)return result;
-  const jackpotPart=source==="GRAND_FORTUNE"?Math.max(0,Math.floor(Number(result.result?.jackpotPayout)||0)):0;
+  const bet=Math.max(0,Math.floor(Number(result.bet)||0));
+  if(!bet)return result;
+
+  const jackpotPart=source==="GRAND_FORTUNE"
+    ?Math.max(0,Math.floor(Number(result.result?.jackpotPayout)||0))
+    :0;
   const total=Math.max(0,Math.floor(Number(result.payout)||0));
-  const normal=Math.max(0,total-jackpotPart),maxNormal=bet*1000;
+  const normal=Math.max(0,total-jackpotPart);
+  const maxNormal=bet*1000;
   if(normal<=maxNormal)return result;
+
   const excess=normal-maxNormal;
-  const d=await debit(env,userId,excess,"CASINO_MAX_WIN_CAP",`casino:maxwin:${source}:${result.roundId}`,{source,roundId:result.roundId,bet,maxWin:maxNormal,excess});
-  const payout=maxNormal+jackpotPart,multiplier=Math.floor((payout/Math.max(1,bet))*100)/100;
-  const nested=result.result?{...result.result,normalPayout:Math.min(maxNormal,Math.max(0,Number(result.result.normalPayout??normal))),multiplier,maxWin:maxNormal,maxWinHit:true}:result.result;
+  const d=await debit(
+    env,
+    userId,
+    excess,
+    "CASINO_MAX_WIN_CAP",
+    `casino:maxwin:${source}:${result.roundId}`,
+    {source,roundId:result.roundId,bet,maxWin:maxNormal,excess}
+  );
+  const payout=maxNormal+jackpotPart;
+  const multiplier=Math.floor((payout/Math.max(1,bet))*100)/100;
+  const nested=result.result?{
+    ...result.result,
+    normalPayout:Math.min(maxNormal,Math.max(0,Number(result.result.normalPayout??normal))),
+    multiplier,
+    maxWin:maxNormal,
+    maxWinHit:true
+  }:result.result;
+
   return {...result,payout,multiplier,balance:d.balance,result:nested,maxWin:maxNormal,maxWinHit:true};
 }
 
@@ -72,32 +146,97 @@ async function houseResult(env,userId,result,source){
   const capped=await capCasinoResult(env,userId,result,source);
   if(!capped?.roundId)return capped;
   const status=await recordJackpotLoss(env,userId,capped.roundId,capped.bet,capped.payout,source);
-  return {...capped,jackpotPool:status.pool,jackpotAdded:status.added,maxWin:Math.max(0,Number(capped.bet||0))*1000};
+  return {
+    ...capped,
+    jackpotPool:status.pool,
+    jackpotAdded:status.added,
+    maxWin:Math.max(0,Number(capped.bet||0))*1000
+  };
 }
 
 async function handleCasinoApi(request,env,url){
-  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
+  const a=await authenticatePlayer(request,env);
+  if(a.response)return a.response;
   const {auth,userId,body}=a;
+
   try{
-    if(url.pathname==="/api/casino/slots")return json({ok:true,...await houseResult(env,userId,await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID()),"SLOTS")});
-    if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await houseResult(env,userId,await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID()),"MEGA_SLOTS")});
-    if(url.pathname==="/api/casino/advanced-slot/spin")return json({ok:true,...await houseResult(env,userId,await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID()),`ADV_${String(body.slotId||"")}`)});
-    if(url.pathname==="/api/casino/more-slot/spin")return json({ok:true,...await houseResult(env,userId,await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID()),`MORE_${String(body.slotId||"")}`)});
-    if(url.pathname==="/api/casino/jackpot/status")return json({ok:true,...await jackpotStatus(env)});
-    if(url.pathname==="/api/casino/jackpot/spin")return json({ok:true,...await houseResult(env,userId,await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID()),"GRAND_FORTUNE")});
-    if(url.pathname==="/api/casino/wheel")return json({ok:true,...await houseResult(env,userId,await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID()),"WHEEL")});
-    if(url.pathname==="/api/casino/dice")return json({ok:true,...await houseResult(env,userId,await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target),"DICE")});
-    if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await houseResult(env,userId,await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice),"COINFLIP")});
-    if(url.pathname==="/api/casino/plinko")return json({ok:true,...await houseResult(env,userId,await playBalancedPlinko(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.risk),"PLINKO")});
-    if(url.pathname==="/api/casino/baccarat")return json({ok:true,...await houseResult(env,userId,await playBaccarat(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice),"BACCARAT")});
-    if(url.pathname==="/api/casino/crash/start")return json({ok:true,...await startCrash(env,userId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/crash/status")return json({ok:true,...await crashStatus(env,userId,body.token)});
-    if(url.pathname==="/api/casino/crash/cashout")return json({ok:true,...await crashCashout(env,userId,body.token,body.actionId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/roulette/list")return json({ok:true,rooms:await listRouletteRooms(env)});
-    if(url.pathname==="/api/casino/roulette/create")return json({ok:true,...await createRouletteRoom(env,userId,auth.user,body)});
-    if(url.pathname==="/api/casino/roulette/join")return json({ok:true,...await joinRouletteRoom(env,userId,auth.user,body)});
-    if(url.pathname==="/api/casino/roulette/resume")return json({ok:true,...await resumeRouletteRoom(env,userId,auth.user)});
+    if(url.pathname==="/api/casino/slots"){
+      const result=await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,"SLOTS")});
+    }
+    if(url.pathname==="/api/casino/mega-slots"){
+      const result=await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,"MEGA_SLOTS")});
+    }
+    if(url.pathname==="/api/casino/advanced-slot/spin"){
+      const result=await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,`ADV_${String(body.slotId||"")}`)});
+    }
+    if(url.pathname==="/api/casino/more-slot/spin"){
+      const result=await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,`MORE_${String(body.slotId||"")}`)});
+    }
+    if(url.pathname==="/api/casino/jackpot/status"){
+      return json({ok:true,...await jackpotStatus(env)});
+    }
+    if(url.pathname==="/api/casino/jackpot/spin"){
+      const result=await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,"GRAND_FORTUNE")});
+    }
+    if(url.pathname==="/api/casino/wheel"){
+      const result=await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      return json({ok:true,...await houseResult(env,userId,result,"WHEEL")});
+    }
+    if(url.pathname==="/api/casino/dice"){
+      const result=await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target);
+      return json({ok:true,...await houseResult(env,userId,result,"DICE")});
+    }
+    if(url.pathname==="/api/casino/coinflip"){
+      const result=await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice);
+      return json({ok:true,...await houseResult(env,userId,result,"COINFLIP")});
+    }
+    if(url.pathname==="/api/casino/plinko"){
+      const result=await playBalancedPlinko(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.risk);
+      return json({ok:true,...await houseResult(env,userId,result,"PLINKO")});
+    }
+    if(url.pathname==="/api/casino/baccarat"){
+      const result=await playBaccarat(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice);
+      return json({ok:true,...await houseResult(env,userId,result,"BACCARAT")});
+    }
+    if(url.pathname==="/api/casino/crash/start"){
+      return json({ok:true,...await startCrash(env,userId,body.bet,body.requestId||crypto.randomUUID())});
+    }
+    if(url.pathname==="/api/casino/crash/status"){
+      return json({ok:true,...await crashStatus(env,userId,body.token)});
+    }
+    if(url.pathname==="/api/casino/crash/cashout"){
+      return json({ok:true,...await crashCashout(env,userId,body.token,body.actionId||crypto.randomUUID())});
+    }
+    if(url.pathname==="/api/casino/roulette/list"){
+      return json({ok:true,rooms:await listRouletteRooms(env)});
+    }
+    if(url.pathname==="/api/casino/roulette/create"){
+      return json({ok:true,...await createRouletteRoom(env,userId,auth.user,body)});
+    }
+    if(url.pathname==="/api/casino/roulette/join"){
+      return json({ok:true,...await joinRouletteRoom(env,userId,auth.user,body)});
+    }
+    if(url.pathname==="/api/casino/roulette/resume"){
+      return json({ok:true,...await resumeRouletteRoom(env,userId,auth.user)});
+    }
     return json({ok:false,error:"CASINO_ROUTE_NOT_FOUND"},404);
-  }catch(error){console.error("CASINO",url.pathname,error);return json({ok:false,error:String(error?.message||"CASINO_ERROR")},400);}
+  }catch(error){
+    console.error("CASINO",url.pathname,error);
+    return json({ok:false,error:String(error?.message||"CASINO_ERROR")},400);
+  }
 }
-function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
+
+function json(data,status=200){
+  return new Response(JSON.stringify(data),{
+    status,
+    headers:{
+      "content-type":"application/json; charset=utf-8",
+      "cache-control":"no-store"
+    }
+  });
+}
