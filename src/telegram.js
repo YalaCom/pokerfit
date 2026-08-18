@@ -1,4 +1,5 @@
 import { ensurePlayer, getPlayer } from "./db.js";
+import {resolveVirtualChipRequest,notifyVirtualChipResolution,answerVirtualChipCallback} from "./virtual-chips.js";
 
 export async function telegramApi(token,method,payload) {
   const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{
@@ -22,7 +23,7 @@ export async function handleTelegramWebhook(request,env) {
       if(text.startsWith("/start")){
         await telegramApi(env.TELEGRAM_BOT_TOKEN,"sendMessage",{
           chat_id:m.chat.id,
-          text:`♠ FIT POKER CLUB\n\nДобро пожаловать за стол, ${player.first_name}.\n\nБаланс: ${Number(player.balance).toLocaleString("ru-RU")} фишек\n\nTexas Hold'em • Blackjack\nТолько виртуальные игровые фишки.`,
+          text:`♠ FIT POKER CLUB\n\nДобро пожаловать за стол, ${player.first_name}.\n\nБаланс: ${Number(player.balance).toLocaleString("ru-RU")} фишек\n\nTexas Hold'em • Blackjack • Casino\nТолько виртуальные игровые фишки.`,
           reply_markup:{inline_keyboard:[[{text:"НАЧАТЬ ИГРАТЬ",web_app:{url:appUrl}}]]}
         });
       }else if(text==="/balance"){
@@ -58,7 +59,19 @@ export async function handleTelegramWebhook(request,env) {
     }
 
     if(update.callback_query){
-      await telegramApi(env.TELEGRAM_BOT_TOKEN,"answerCallbackQuery",{callback_query_id:update.callback_query.id});
+      const cb=update.callback_query,data=String(cb.data||"");
+      if(data.startsWith("vchip:")){
+        const [,action,requestId]=data.split(":");
+        try{
+          const result=await resolveVirtualChipRequest(env,cb.from.id,requestId,action);
+          await answerVirtualChipCallback(env,cb,result.approved?"Фишки начислены":result.rejected?"Заявка отклонена":"Уже обработано");
+          if(result.request)await notifyVirtualChipResolution(env,result.request,!!result.approved,result.balance);
+        }catch(error){
+          await telegramApi(env.TELEGRAM_BOT_TOKEN,"answerCallbackQuery",{callback_query_id:cb.id,text:String(error?.message||"Ошибка"),show_alert:true});
+        }
+      }else{
+        await telegramApi(env.TELEGRAM_BOT_TOKEN,"answerCallbackQuery",{callback_query_id:cb.id});
+      }
     }
   }catch(error){console.error("webhook",error)}
   return new Response("OK");
