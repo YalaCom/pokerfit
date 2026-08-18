@@ -21,10 +21,6 @@ export async function createFriendExchangeRequest(env,userId,tgUser,kind){
     try{
       const d=await debit(env,userId,WITHDRAW_CHIPS,"FRIEND_WITHDRAW_REQUEST",`friend-exchange:${id}:debit`,{requestId:id,displayRubles:DISPLAY_RUBLES});
       balance=d.balance;
-      await env.DB.batch([
-        env.DB.prepare(`UPDATE jackpot_pools SET balance=balance+?2,updated_at=CURRENT_TIMESTAMP WHERE id=?1`).bind("grand",WITHDRAW_CHIPS),
-        env.DB.prepare(`INSERT OR IGNORE INTO jackpot_events(request_key,telegram_id,type,amount,metadata) VALUES(?1,?2,'FRIEND_WITHDRAW_TO_JACKPOT',?3,?4)`).bind(`friend-exchange:${id}:jackpot`,userId,WITHDRAW_CHIPS,JSON.stringify({requestId:id,displayRubles:DISPLAY_RUBLES}))
-      ]);
     }catch(error){
       try{await env.DB.prepare(`DELETE FROM friend_exchange_requests WHERE id=?1 AND status='pending'`).bind(id).run();}catch{}
       throw error;
@@ -73,7 +69,7 @@ async function notifyAdmin(env,adminId,request,tgUser){
   const isTopup=request.kind==="topup";
   const text=isTopup
     ?`💳 FIT POKER • ПОПОЛНЕНИЕ\n\n${name} (${username})\nTelegram ID: ${request.telegram_id}\n1 ₽ → +${Number(request.chip_amount).toLocaleString("ru-RU")} фишек\n\nНажми подтвердить.`
-    :`💸 FIT POKER • ВЫВОД\n\n${name} (${username})\nTelegram ID: ${request.telegram_id}\n${Number(request.chip_amount).toLocaleString("ru-RU")} фишек → 1 ₽\n\nФишки уже списаны и добавлены в Jackpot-банк. Нажми подтвердить.`;
+    :`💸 FIT POKER • ВЫВОД\n\n${name} (${username})\nTelegram ID: ${request.telegram_id}\n${Number(request.chip_amount).toLocaleString("ru-RU")} фишек → 1 ₽\n\nФишки уже списаны. Нажми подтвердить.`;
   await telegramCall(env,"sendMessage",{chat_id:adminId,text,reply_markup:{inline_keyboard:[[{text:"✅ ПОДТВЕРДИТЬ",callback_data:`fx:approve:${request.id}`}]]}});
 }
 
