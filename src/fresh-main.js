@@ -2,7 +2,7 @@ import worker,{PokerTableDO,RussianRouletteDO} from "./main.js";
 
 export {PokerTableDO,RussianRouletteDO};
 
-const BUILD="2026-08-18-1451-ready";
+const BUILD="2026-08-18-1555-slotfix";
 
 export default {
   async fetch(request,env,ctx){
