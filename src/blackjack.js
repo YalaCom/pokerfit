@@ -1,5 +1,6 @@
 import { debit, credit, zeroLedger, getBalance, addXp } from "./db.js";
 import { awardSeasonScore } from "./season.js";
+import {recordJackpotLoss} from "./jackpot-bank.js";
 
 const SUITS=["S","H","D","C"];
 const RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
@@ -91,6 +92,8 @@ async function settle(env,game) {
   }
   if (!applied) return;
 
+  await recordJackpotLoss(env,game.userId,game.gameId,game.bet,game.payout,"BLACKJACK");
+
   const win=["win","dealer_bust","blackjack"].includes(game.result)?1:0;
   const push=game.result==="push"?1:0;
   const loss=!win&&!push?1:0;
@@ -163,6 +166,5 @@ async function open(token,botToken,userId) {
     return game;
   }catch{throw new Error("INVALID_GAME_STATE");}
 }
-function b64(bytes){let s="";for(const x of bytes)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,
-"");}
+function b64(bytes){let s="";for(const x of bytes)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
 function unb64(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";const b=atob(s),o=new Uint8Array(b.length);for(let i=0;i<b.length;i++)o[i]=b.charCodeAt(i);return o;}
