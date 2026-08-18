@@ -1,5 +1,7 @@
+.github/workflows/ci.yml
 .gitignore
 FEATURES.md
+PROJECT_TREE.txt
 README.md
 SETUP_RU.md
 migrations/0001_full_schema.sql
@@ -7,7 +9,14 @@ package.json
 public/admin.html
 public/admin.js
 public/app.js
+public/css/components.css
+public/css/core.css
+public/css/game.css
 public/index.html
+public/js/blackjack.js
+public/js/core.js
+public/js/poker.js
+public/js/social.js
 public/styles.css
 scripts/check.mjs
 scripts/deploy.mjs
