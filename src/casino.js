@@ -1,4 +1,5 @@
 import { debit, credit, zeroLedger, getBalance } from "./db.js";
+import {recordJackpotLoss} from "./jackpot-bank.js";
 
 const SLOT_SYMBOLS = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
 const SLOT_WEIGHTS = [34,26,18,12,7,3];
@@ -109,7 +110,10 @@ export async function startCrash(env,userId,bet,requestId){
 export async function crashStatus(env,userId,token){
   const game=await openCrash(token,env.TELEGRAM_BOT_TOKEN,String(userId));
   const elapsed=Math.max(0,Date.now()-game.startAt),current=multiplierAtMs(elapsed),crashed=current>=game.crashAt;
-  if(crashed)await zeroLedger(env,userId,"CASINO_CRASH_RESULT",`casino:CRASH:result:${game.roundId}`,{game:"CRASH",roundId:game.roundId,result:"crash",crashAt:game.crashAt});
+  if(crashed){
+    await zeroLedger(env,userId,"CASINO_CRASH_RESULT",`casino:CRASH:result:${game.roundId}`,{game:"CRASH",roundId:game.roundId,result:"crash",crashAt:game.crashAt});
+    await recordJackpotLoss(env,userId,game.roundId,game.bet,0,"CRASH");
+  }
   return {roundId:game.roundId,crashed,multiplier:crashed?game.crashAt:round2(current),crashAt:crashed?game.crashAt:null,reveal:crashed?{crashAt:game.crashAt}:null};
 }
 
@@ -118,7 +122,11 @@ export async function crashCashout(env,userId,token,actionId){
   const oldPayout=await getTransaction(env,payoutKey);
   if(oldPayout){const meta=safeJson(oldPayout.metadata)||{};return {won:true,cashoutMultiplier:Number(meta.cashoutMultiplier||1),payout:Number(oldPayout.amount||0),balance:await getBalance(env,userId),duplicate:true};}
   const current=multiplierAtMs(Math.max(0,Date.now()-game.startAt));
-  if(current>=game.crashAt){await zeroLedger(env,userId,"CASINO_CRASH_RESULT",`casino:CRASH:result:${game.roundId}`,{game:"CRASH",roundId:game.roundId,result:"crash",crashAt:game.crashAt,actionId:String(actionId||"")});return {won:false,crashed:true,crashAt:game.crashAt,multiplier:game.crashAt,balance:await getBalance(env,userId)};}
+  if(current>=game.crashAt){
+    await zeroLedger(env,userId,"CASINO_CRASH_RESULT",`casino:CRASH:result:${game.roundId}`,{game:"CRASH",roundId:game.roundId,result:"crash",crashAt:game.crashAt,actionId:String(actionId||"")});
+    await recordJackpotLoss(env,userId,game.roundId,game.bet,0,"CRASH");
+    return {won:false,crashed:true,crashAt:game.crashAt,multiplier:game.crashAt,balance:await getBalance(env,userId)};
+  }
   const cashoutMultiplier=round2(Math.max(1,current)),payout=Math.max(1,Math.floor(game.bet*cashoutMultiplier));
   const c=await credit(env,userId,payout,"CASINO_CRASH_PAYOUT",payoutKey,{game:"CRASH",roundId:game.roundId,cashoutMultiplier,actionId:String(actionId||"")});
   await zeroLedger(env,userId,"CASINO_CRASH_RESULT",`casino:CRASH:result:${game.roundId}`,{game:"CRASH",roundId:game.roundId,result:"cashout",cashoutMultiplier,payout});
