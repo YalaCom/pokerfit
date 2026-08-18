@@ -134,13 +134,18 @@ function watchBalance(){
 
 function watchViews(){
   const views=[...document.querySelectorAll(".view")];
+  const activeState=new WeakMap();
+  for(const view of views)activeState.set(view,view.classList.contains("active"));
   const observer=new MutationObserver(entries=>{
     for(const entry of entries){
       const view=entry.target;
-      if(view.classList.contains("active")){
-        view.classList.remove("luxury-enter");
-        void view.offsetWidth;
-        view.classList.add("luxury-enter");
+      const now=view.classList.contains("active"),before=activeState.get(view);
+      activeState.set(view,now);
+      if(now&&!before&&state.settings?.animations!==false){
+        view.animate(
+          [{opacity:.25,transform:"translateY(7px) scale(.995)"},{opacity:1,transform:"translateY(0) scale(1)"}],
+          {duration:320,easing:"cubic-bezier(.2,.75,.2,1)"}
+        );
       }
     }
   });
