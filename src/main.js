@@ -5,6 +5,7 @@ import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playBaccarat,sta
 import {playAdvancedSlot} from "./advanced-slots.js";
 import {playMoreSlot} from "./more-slots.js";
 import {playJackpotSlot,jackpotStatus} from "./jackpot-slot.js";
+import {recordJackpotLoss} from "./jackpot-bank.js";
 import {requestVirtualChips} from "./virtual-chips.js";
 import {createFriendExchangeRequest} from "./friend-exchange.js";
 import {playBalancedPlinko} from "./plinko.js";
@@ -18,7 +19,7 @@ export class PokerTableDO extends BasePokerTableDO{
     if(data?.type!=="chat")return super.webSocketMessage(ws,message);
     await this.ready;const attachment=ws.deserializeAttachment()||{};if(attachment.mode!=="player")return;
     const now=Date.now();if(now-Number(attachment.lastChatAt||0)<3500)return this.send(ws,{type:"error",error:"CHAT_COOLDOWN"});
-    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY");if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG");
+    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY"});if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG");
     attachment.lastChatAt=now;ws.serializeAttachment(attachment);const seat=this.findSeat(attachment.userId);await this.broadcastEvent({type:"chat",userId:String(attachment.userId),name:seat?.name||"Игрок",text,at:now});
   }
 }
@@ -53,21 +54,27 @@ async function handleFriendExchangeApi(request,env,kind){
   try{return json({ok:true,...await createFriendExchangeRequest(env,a.userId,a.auth.user,kind)});}catch(error){console.error("friend exchange",kind,error);return json({ok:false,error:String(error?.message||"EXCHANGE_ERROR")},400);}
 }
 
+async function houseResult(env,userId,result,source){
+  if(!result?.roundId)return result;
+  const status=await recordJackpotLoss(env,userId,result.roundId,result.bet,result.payout,source);
+  return {...result,jackpotPool:status.pool,jackpotAdded:status.added};
+}
+
 async function handleCasinoApi(request,env,url){
   const a=await authenticatePlayer(request,env);if(a.response)return a.response;
   const {auth,userId,body}=a;
   try{
-    if(url.pathname==="/api/casino/slots")return json({ok:true,...await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/advanced-slot/spin")return json({ok:true,...await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/more-slot/spin")return json({ok:true,...await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/slots")return json({ok:true,...await houseResult(env,userId,await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID()),"SLOTS")});
+    if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await houseResult(env,userId,await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID()),"MEGA_SLOTS")});
+    if(url.pathname==="/api/casino/advanced-slot/spin")return json({ok:true,...await houseResult(env,userId,await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID()),`ADV_${String(body.slotId||"")}`)});
+    if(url.pathname==="/api/casino/more-slot/spin")return json({ok:true,...await houseResult(env,userId,await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID()),`MORE_${String(body.slotId||"")}`)});
     if(url.pathname==="/api/casino/jackpot/status")return json({ok:true,...await jackpotStatus(env)});
-    if(url.pathname==="/api/casino/jackpot/spin")return json({ok:true,...await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/wheel")return json({ok:true,...await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID())});
-    if(url.pathname==="/api/casino/dice")return json({ok:true,...await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target)});
-    if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
-    if(url.pathname==="/api/casino/plinko")return json({ok:true,...await playBalancedPlinko(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.risk)});
-    if(url.pathname==="/api/casino/baccarat")return json({ok:true,...await playBaccarat(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
+    if(url.pathname==="/api/casino/jackpot/spin")return json({ok:true,...await houseResult(env,userId,await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID()),"GRAND_FORTUNE")});
+    if(url.pathname==="/api/casino/wheel")return json({ok:true,...await houseResult(env,userId,await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID()),"WHEEL")});
+    if(url.pathname==="/api/casino/dice")return json({ok:true,...await houseResult(env,userId,await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target),"DICE")});
+    if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await houseResult(env,userId,await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice),"COINFLIP")});
+    if(url.pathname==="/api/casino/plinko")return json({ok:true,...await houseResult(env,userId,await playBalancedPlinko(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.risk),"PLINKO")});
+    if(url.pathname==="/api/casino/baccarat")return json({ok:true,...await houseResult(env,userId,await playBaccarat(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice),"BACCARAT")});
     if(url.pathname==="/api/casino/crash/start")return json({ok:true,...await startCrash(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/crash/status")return json({ok:true,...await crashStatus(env,userId,body.token)});
     if(url.pathname==="/api/casino/crash/cashout")return json({ok:true,...await crashCashout(env,userId,body.token,body.actionId||crypto.randomUUID())});
