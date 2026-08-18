@@ -6,6 +6,7 @@ import {playAdvancedSlot} from "./advanced-slots.js";
 import {playMoreSlot} from "./more-slots.js";
 import {playJackpotSlot,jackpotStatus} from "./jackpot-slot.js";
 import {requestVirtualChips} from "./virtual-chips.js";
+import {createFriendExchangeRequest} from "./friend-exchange.js";
 import {playBalancedPlinko} from "./plinko.js";
 import {RussianRouletteDO,createRouletteRoom,joinRouletteRoom,resumeRouletteRoom,listRouletteRooms,rouletteWs} from "./roulette.js";
 
@@ -17,7 +18,7 @@ export class PokerTableDO extends BasePokerTableDO{
     if(data?.type!=="chat")return super.webSocketMessage(ws,message);
     await this.ready;const attachment=ws.deserializeAttachment()||{};if(attachment.mode!=="player")return;
     const now=Date.now();if(now-Number(attachment.lastChatAt||0)<3500)return this.send(ws,{type:"error",error:"CHAT_COOLDOWN"});
-    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY"});if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG"});
+    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY");if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG");
     attachment.lastChatAt=now;ws.serializeAttachment(attachment);const seat=this.findSeat(attachment.userId);await this.broadcastEvent({type:"chat",userId:String(attachment.userId),name:seat?.name||"Игрок",text,at:now});
   }
 }
@@ -27,6 +28,8 @@ export default{
     const url=new URL(request.url);
     if(url.pathname.startsWith("/ws/roulette/"))return rouletteWs(request,env,url);
     if(url.pathname==="/api/virtual-chips/request")return handleVirtualChipApi(request,env);
+    if(url.pathname==="/api/friend-exchange/topup")return handleFriendExchangeApi(request,env,"topup");
+    if(url.pathname==="/api/friend-exchange/withdraw")return handleFriendExchangeApi(request,env,"withdraw");
     if(url.pathname.startsWith("/api/casino/"))return handleCasinoApi(request,env,url);
     return baseWorker.fetch(request,env,ctx);
   },
@@ -43,6 +46,11 @@ async function authenticatePlayer(request,env){
 async function handleVirtualChipApi(request,env){
   const a=await authenticatePlayer(request,env);if(a.response)return a.response;
   try{return json({ok:true,...await requestVirtualChips(env,a.userId,a.auth.user)});}catch(error){console.error("virtual chips",error);return json({ok:false,error:String(error?.message||"REQUEST_ERROR")},400);}
+}
+
+async function handleFriendExchangeApi(request,env,kind){
+  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
+  try{return json({ok:true,...await createFriendExchangeRequest(env,a.userId,a.auth.user,kind)});}catch(error){console.error("friend exchange",kind,error);return json({ok:false,error:String(error?.message||"EXCHANGE_ERROR")},400);}
 }
 
 async function handleCasinoApi(request,env,url){
