@@ -19,7 +19,7 @@ export class PokerTableDO extends BasePokerTableDO{
     if(data?.type!=="chat")return super.webSocketMessage(ws,message);
     await this.ready;const attachment=ws.deserializeAttachment()||{};if(attachment.mode!=="player")return;
     const now=Date.now();if(now-Number(attachment.lastChatAt||0)<3500)return this.send(ws,{type:"error",error:"CHAT_COOLDOWN"});
-    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY"});if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG");
+    const text=String(data.text||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();if(!text)return this.send(ws,{type:"error",error:"CHAT_EMPTY"});if(text.length>60)return this.send(ws,{type:"error",error:"CHAT_TOO_LONG"});
     attachment.lastChatAt=now;ws.serializeAttachment(attachment);const seat=this.findSeat(attachment.userId);await this.broadcastEvent({type:"chat",userId:String(attachment.userId),name:seat?.name||"Игрок",text,at:now});
   }
 }
