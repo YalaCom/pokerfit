@@ -1,10 +1,9 @@
 import baseWorker,{PokerTableDO as BasePokerTableDO} from "./index.js";
 import {authenticateJsonRequest} from "./auth.js";
 import {ensurePlayer,debit} from "./db.js";
-import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
-import {playAdvancedSlot} from "./advanced-slots.js";
-import {playMoreSlot} from "./more-slots.js";
-import {playJackpotSlot,jackpotStatus} from "./jackpot-slot.js";
+import {playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
+import {playFairClassic,playFairMega,playFairAdvanced,playFairMore,playFairJackpot} from "./slot-fairness.js";
+import {jackpotStatus} from "./jackpot-slot.js";
 import {recordJackpotLoss} from "./jackpot-bank.js";
 import {requestVirtualChips} from "./virtual-chips.js";
 import {createFriendExchangeRequest} from "./friend-exchange.js";
@@ -161,26 +160,26 @@ async function handleCasinoApi(request,env,url){
 
   try{
     if(url.pathname==="/api/casino/slots"){
-      const result=await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      const result=await playFairClassic(env,userId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,"SLOTS")});
     }
     if(url.pathname==="/api/casino/mega-slots"){
-      const result=await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      const result=await playFairMega(env,userId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,"MEGA_SLOTS")});
     }
     if(url.pathname==="/api/casino/advanced-slot/spin"){
-      const result=await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
+      const result=await playFairAdvanced(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,`ADV_${String(body.slotId||"")}`)});
     }
     if(url.pathname==="/api/casino/more-slot/spin"){
-      const result=await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
+      const result=await playFairMore(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,`MORE_${String(body.slotId||"")}`)});
     }
     if(url.pathname==="/api/casino/jackpot/status"){
       return json({ok:true,...await jackpotStatus(env)});
     }
     if(url.pathname==="/api/casino/jackpot/spin"){
-      const result=await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID());
+      const result=await playFairJackpot(env,userId,body.bet,body.requestId||crypto.randomUUID());
       return json({ok:true,...await houseResult(env,userId,result,"GRAND_FORTUNE")});
     }
     if(url.pathname==="/api/casino/wheel"){
