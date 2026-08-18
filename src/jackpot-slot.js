@@ -6,10 +6,11 @@ const WILD="🃏",SCATTER="🌟",JACKPOT="💰";
 const HIT_DENOMINATOR=250_000;
 const BONUS_SPINS=6;
 const MAX_BONUS_SPINS=12;
+const MAX_WIN_MULTIPLIER=1000;
 const CFG={
   id:"grandjackpot",name:"GRAND FORTUNE",rows:3,cols:5,lineCount:20,
   symbols:["🍒","🔔","💎","👑","7️⃣",WILD,SCATTER,JACKPOT],
-  weights:[28,21,14,9,5,2.4,1.4,.2],
+  weights:[28,21,14,9,5,2.4,.85,.2],
   bonusWeights:[21,17,12,8,4.5,9,2.2,4],
   scatterTrigger:3,
   paytable:{"🍒":{3:1.2,4:3,5:8},"🔔":{3:2,4:6,5:18},"💎":{3:4,4:15,5:60},"👑":{3:7,4:30,5:140},"7️⃣":{3:12,4:55,5:300},[WILD]:{3:18,4:90,5:600},[JACKPOT]:{3:20,4:100,5:750}},
@@ -30,24 +31,26 @@ export async function playJackpotSlot(env,userId,bet,requestId){
   const roundId=crypto.randomUUID(),grid=spinGrid(CFG.weights,new Set()),base=evaluateAdvancedGrid(CFG,grid,bet,1);
   const bonusTriggered=base.scatterCount>=CFG.scatterTrigger;
   const bonus=bonusTriggered?bonusRound(bet,grid):null;
-  const normalPayout=Math.max(0,Number(base.payout||0)+Number(bonus?.payout||0));
+  const rawNormalPayout=Math.max(0,Number(base.payout||0)+Number(bonus?.payout||0));
+  const maxWin=bet*MAX_WIN_MULTIPLIER;
+  const normalPayout=Math.min(rawNormalPayout,maxWin);
   const poolBefore=(await getJackpotPool(env)).pool;
   const jackpotHit=poolBefore>0&&secureInt(HIT_DENOMINATOR)===0;
-  const metadata={game:"JACKPOT",roundId,bet,grid,base,bonusTriggered,bonus,jackpotHit};
+  const metadata={game:"JACKPOT",roundId,bet,grid,base,bonusTriggered,bonus,jackpotHit,maxWin,normalMaxWinHit:rawNormalPayout>maxWin};
   const d=await debit(env,userId,bet,"CASINO_JACKPOT_BET",betKey,metadata);
   if(!d.applied){const existing=await tx(env,betKey);if(existing)return replay(env,userId,existing);throw new Error("DUPLICATE_REQUEST");}
 
   const jackpotPayout=jackpotHit?await claimWholeJackpot(env,userId,roundId):0;
   const payout=normalPayout+jackpotPayout;
   const multiplier=round2(payout/Math.max(1,bet));
-  const result={grid,base,bonusTriggered,bonus,jackpotHit,jackpotPayout,normalPayout,multiplier};
+  const result={grid,base,bonusTriggered,bonus,jackpotHit,jackpotPayout,normalPayout,rawNormalPayout,maxWin,maxWinHit:rawNormalPayout>maxWin,multiplier};
   const settled={...metadata,result,payout,multiplier};
   await updateBetMetadata(env,betKey,settled);
   let balance=d.balance;
   if(payout>0){const c=await credit(env,userId,payout,"CASINO_JACKPOT_PAYOUT",`casino:JACKPOT:payout:${roundId}`,settled);balance=c.balance;}
   else await zeroLedger(env,userId,"CASINO_JACKPOT_RESULT",`casino:JACKPOT:result:${roundId}`,settled);
   const status=await jackpotStatus(env);
-  return {roundId,bet,payout,multiplier,result,balance,pool:status.pool};
+  return {roundId,bet,payout,multiplier,result,balance,pool:status.pool,maxWin};
 }
 
 function bonusRound(bet,triggerGrid){
@@ -84,16 +87,17 @@ function bonusRound(bet,triggerGrid){
 }
 
 async function replay(env,userId,betTx){
-  const meta=safeJson(betTx.metadata),roundId=meta.roundId;
+  const meta=safeJson(betTx.metadata),roundId=meta.roundId,bet=Math.max(1,Number(meta.bet||1)),maxWin=bet*MAX_WIN_MULTIPLIER;
   let result=meta.result||{};
   let jackpotPayout=Number(result.jackpotPayout||0);
   if(meta.jackpotHit&&!jackpotPayout)jackpotPayout=await claimWholeJackpot(env,userId,roundId);
-  const normalPayout=Number(result.normalPayout??(Number(meta.base?.payout||0)+Number(meta.bonus?.payout||0)));
+  const rawNormal=Number(result.rawNormalPayout??result.normalPayout??(Number(meta.base?.payout||0)+Number(meta.bonus?.payout||0)));
+  const normalPayout=Math.min(maxWin,Math.max(0,rawNormal));
   const payout=Math.max(Number(meta.payout||0),normalPayout+jackpotPayout);
-  const multiplier=round2(payout/Math.max(1,Number(meta.bet||1)));
-  result={...result,grid:result.grid||meta.grid,base:result.base||meta.base,bonusTriggered:result.bonusTriggered??meta.bonusTriggered,bonus:result.bonus||meta.bonus,jackpotHit:result.jackpotHit??meta.jackpotHit,jackpotPayout,normalPayout,multiplier};
+  const multiplier=round2(payout/bet);
+  result={...result,grid:result.grid||meta.grid,base:result.base||meta.base,bonusTriggered:result.bonusTriggered??meta.bonusTriggered,bonus:result.bonus||meta.bonus,jackpotHit:result.jackpotHit??meta.jackpotHit,jackpotPayout,normalPayout,rawNormalPayout:rawNormal,maxWin,maxWinHit:rawNormal>maxWin,multiplier};
   if(payout>0)await credit(env,userId,payout,"CASINO_JACKPOT_PAYOUT",`casino:JACKPOT:payout:${roundId}`,{...meta,result,payout,multiplier});
-  return {roundId,bet:Number(meta.bet||0),payout,multiplier,result,balance:await getBalance(env,userId),pool:(await jackpotStatus(env)).pool,duplicate:true};
+  return {roundId,bet:Number(meta.bet||0),payout,multiplier,result,balance:await getBalance(env,userId),pool:(await jackpotStatus(env)).pool,duplicate:true,maxWin};
 }
 
 async function updateBetMetadata(env,key,metadata){try{await env.DB.prepare(`UPDATE wallet_transactions SET metadata=?2 WHERE idempotency_key=?1`).bind(key,JSON.stringify(metadata)).run();}catch{}}
