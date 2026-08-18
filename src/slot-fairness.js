@@ -4,6 +4,7 @@ import {playAdvancedSlot} from "./advanced-slots.js";
 import {playMoreSlot} from "./more-slots.js";
 import {playJackpotSlot} from "./jackpot-slot.js";
 import {recordSlotRound,slotProfile} from "./slot-economy.js";
+import {maybeInjectNaturalBonus,decorateMultiplierWilds} from "./bonus-engine.js";
 
 const MAX_WIN_MULTIPLIER=1000;
 
@@ -29,33 +30,43 @@ export async function playFairMore(env,userId,slotId,bet,requestId){
 
 export async function playFairJackpot(env,userId,bet,requestId){
   const base=await playJackpotSlot(env,userId,bet,requestId);
-  const profile=slotProfile("grandjackpot"),wager=Math.max(1,Number(base.bet||bet)),cap=Math.floor(wager*MAX_WIN_MULTIPLIER);
+  const slotId="grandjackpot",profile=slotProfile(slotId),wager=Math.max(1,Number(base.bet||bet)),cap=Math.floor(wager*MAX_WIN_MULTIPLIER);
   const jackpot=Math.max(0,Number(base.result?.jackpotPayout||0));
-  const rawNormal=Math.max(0,Number(base.result?.rawNormalPayout??base.result?.normalPayout??0));
-  const shaped=shapeNormalPayout(base.result||{},wager,profile.payoutScale,cap,rawNormal);
+  let result=maybeInjectNaturalBonus(slotId,base.result||{},wager);
+  result=decorateMultiplierWilds(slotId,result);
+  const rawNormal=normalPayoutFromResult(result,Math.max(0,Number(base.payout||0)-jackpot));
+  const shaped=shapeNormalPayout(result,wager,profile.payoutScale,cap,rawNormal);
   const fairTotal=shaped.normalPayout+jackpot;
-  const balance=await reconcile(env,userId,base.roundId,Number(base.payout||0),fairTotal,"grandjackpot");
-  const result=scaleResult(base.result||{},shaped,fairTotal,wager,jackpot);
-  await recordSlotRound(env,"grandjackpot",userId,base.roundId,wager,fairTotal);
+  const balance=await reconcile(env,userId,base.roundId,Number(base.payout||0),fairTotal,slotId);
+  result=scaleResult(result,shaped,fairTotal,wager,jackpot);
+  await recordSlotRound(env,slotId,userId,base.roundId,wager,fairTotal);
   return {...base,payout:fairTotal,multiplier:round2(fairTotal/wager),balance,result,maxWin:cap,profile:{targetRtp:profile.targetRtp,volatility:profile.volatility}};
 }
 
 async function normalizeStandard(env,userId,slotId,base){
-  const profile=slotProfile(slotId),raw=Math.max(0,Number(base.payout||0)),bet=Math.max(1,Number(base.bet||1)),cap=Math.floor(bet*MAX_WIN_MULTIPLIER);
-  const hasBonus=!!(base.result?.bonusTriggered&&base.result?.bonus);
-  let fair,shaped=null;
+  const profile=slotProfile(slotId),bet=Math.max(1,Number(base.bet||1)),cap=Math.floor(bet*MAX_WIN_MULTIPLIER);
+  let result=maybeInjectNaturalBonus(slotId,base.result||{},bet);
+  result=decorateMultiplierWilds(slotId,result);
+  const raw=normalPayoutFromResult(result,Math.max(0,Number(base.payout||0)));
+  const hasBonus=!!(result?.bonusTriggered&&result?.bonus);
+  let fair,shaped;
   if(hasBonus){
-    shaped=shapeNormalPayout(base.result||{},bet,profile.payoutScale,cap,raw);
+    shaped=shapeNormalPayout(result,bet,profile.payoutScale,cap,raw);
     fair=shaped.normalPayout;
   }else{
     fair=Math.min(cap,Math.floor(raw*profile.payoutScale));
+    shaped={baseRatio:raw>0?fair/raw:1,bonusRatio:1,bonusTier:null,normalPayout:fair,basePayout:fair,bonusPayout:0};
   }
-  const balance=await reconcile(env,userId,base.roundId,raw,fair,slotId);
-  const result=hasBonus
-    ?scaleResult(base.result||{},shaped,fair,bet,0)
-    :scaleResult(base.result||{},{baseRatio:raw>0?fair/raw:1,bonusRatio:1,bonusTier:null,normalPayout:fair},fair,bet,0);
+  const balance=await reconcile(env,userId,base.roundId,Number(base.payout||0),fair,slotId);
+  result=scaleResult(result,shaped,fair,bet,0);
   await recordSlotRound(env,slotId,userId,base.roundId,bet,fair);
   return {...base,payout:fair,multiplier:round2(fair/bet),balance,result,maxWin:cap,profile:{targetRtp:profile.targetRtp,volatility:profile.volatility}};
+}
+
+function normalPayoutFromResult(result,fallback){
+  const bonus=Math.max(0,Number(result?.bonus?.payout||0));
+  if(result?.base?.payout!=null)return Math.max(0,Number(result.base.payout||0)+bonus);
+  return Math.max(0,Number(fallback||0)+Number(result?.multiplierWildExtra||0)+Number(result?.syntheticBonusPayout||0));
 }
 
 function shapeNormalPayout(result,bet,payoutScale,cap,fallbackRaw){
@@ -88,9 +99,9 @@ function shapeNormalPayout(result,bet,payoutScale,cap,fallbackRaw){
 
 function pickBonusTier(){
   const roll=secureInt(10000);
-  if(roll<6800)return {name:"SMALL",capMultiplier:5+secureInt(26),forceMax:false};
-  if(roll<9300)return {name:"MEDIUM",capMultiplier:30+secureInt(91),forceMax:false};
-  if(roll<9950)return {name:"BIG",capMultiplier:120+secureInt(281),forceMax:false};
+  if(roll<6900)return {name:"SMALL",capMultiplier:5+secureInt(26),forceMax:false};
+  if(roll<9350)return {name:"MEDIUM",capMultiplier:30+secureInt(91),forceMax:false};
+  if(roll<9965)return {name:"BIG",capMultiplier:120+secureInt(281),forceMax:false};
   return {name:"MAX",capMultiplier:MAX_WIN_MULTIPLIER,forceMax:true};
 }
 
@@ -105,7 +116,7 @@ async function reconcile(env,userId,roundId,rawPayout,fairPayout,slotId){
 }
 
 function scaleResult(result,shape,totalPayout,bet,jackpotPayout=0){
-  const out=structuredCloneSafe(result),baseRatio=Number(shape?.baseRatio??1),bonusRatio=Number(shape?.bonusRatio??1);
+  const out=clone(result),baseRatio=Number(shape?.baseRatio??1),bonusRatio=Number(shape?.bonusRatio??1);
   if(out.base){
     out.base.payout=money(out.base.payout,baseRatio);
     if(Array.isArray(out.base.lines))out.base.lines=scaleLines(out.base.lines,baseRatio);
@@ -141,4 +152,4 @@ function scaleLines(lines,ratio){return lines.map(line=>({...line,amount:money(l
 function money(value,ratio){return Math.max(0,Math.floor((Number(value)||0)*ratio));}
 function round2(v){return Math.floor((Number(v)||0)*100)/100;}
 function secureInt(max){max=Math.max(1,Math.floor(max));const ceiling=0x100000000,limit=ceiling-(ceiling%max),buf=new Uint32Array(1);do crypto.getRandomValues(buf);while(buf[0]>=limit);return buf[0]%max;}
-function structuredCloneSafe(v){try{return structuredClone(v);}catch{try{return JSON.parse(JSON.stringify(v));}catch{return{};}}}
+function clone(v){try{return structuredClone(v);}catch{try{return JSON.parse(JSON.stringify(v));}catch{return{};}}}
