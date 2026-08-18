@@ -2,6 +2,7 @@ import baseWorker,{PokerTableDO as BasePokerTableDO} from "./index.js";
 import {authenticateJsonRequest} from "./auth.js";
 import {ensurePlayer} from "./db.js";
 import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
+import {playAdvancedSlot} from "./advanced-slots.js";
 import {playBalancedPlinko} from "./plinko.js";
 import {RussianRouletteDO,createRouletteRoom,joinRouletteRoom,resumeRouletteRoom,listRouletteRooms,rouletteWs} from "./roulette.js";
 
@@ -30,6 +31,7 @@ async function handleCasinoApi(request,env,url){
   try{
     if(url.pathname==="/api/casino/slots")return json({ok:true,...await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/advanced-slot/spin")return json({ok:true,...await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/wheel")return json({ok:true,...await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/dice")return json({ok:true,...await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target)});
     if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
