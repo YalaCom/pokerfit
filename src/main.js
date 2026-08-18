@@ -1,7 +1,10 @@
 import baseWorker,{PokerTableDO as BasePokerTableDO} from "./index.js";
 import {authenticateJsonRequest} from "./auth.js";
 import {ensurePlayer} from "./db.js";
-import {playSlots,playWheel,playDice,startCrash,crashStatus,crashCashout} from "./casino.js";
+import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playPlinko,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
+import {RussianRouletteDO,createRouletteRoom,joinRouletteRoom,listRouletteRooms,rouletteWs} from "./roulette.js";
+
+export {RussianRouletteDO};
 
 export class PokerTableDO extends BasePokerTableDO{
   async webSocketMessage(ws,message){
@@ -26,6 +29,7 @@ export class PokerTableDO extends BasePokerTableDO{
 export default{
   async fetch(request,env,ctx){
     const url=new URL(request.url);
+    if(url.pathname.startsWith("/ws/roulette/"))return rouletteWs(request,env,url);
     if(url.pathname.startsWith("/api/casino/"))return handleCasinoApi(request,env,url);
     return baseWorker.fetch(request,env,ctx);
   },
@@ -40,11 +44,18 @@ async function handleCasinoApi(request,env,url){
   const userId=String(auth.user.id),body=auth.body||{};
   try{
     if(url.pathname==="/api/casino/slots")return json({ok:true,...await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/wheel")return json({ok:true,...await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/dice")return json({ok:true,...await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target)});
+    if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
+    if(url.pathname==="/api/casino/plinko")return json({ok:true,...await playPlinko(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.risk)});
+    if(url.pathname==="/api/casino/baccarat")return json({ok:true,...await playBaccarat(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
     if(url.pathname==="/api/casino/crash/start")return json({ok:true,...await startCrash(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/crash/status")return json({ok:true,...await crashStatus(env,userId,body.token)});
     if(url.pathname==="/api/casino/crash/cashout")return json({ok:true,...await crashCashout(env,userId,body.token,body.actionId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/roulette/list")return json({ok:true,rooms:await listRouletteRooms(env)});
+    if(url.pathname==="/api/casino/roulette/create")return json({ok:true,...await createRouletteRoom(env,userId,auth.user,body)});
+    if(url.pathname==="/api/casino/roulette/join")return json({ok:true,...await joinRouletteRoom(env,userId,auth.user,body)});
     return json({ok:false,error:"CASINO_ROUTE_NOT_FOUND"},404);
   }catch(error){console.error("CASINO",url.pathname,error);return json({ok:false,error:String(error?.message||"CASINO_ERROR")},400);}
 }
