@@ -3,6 +3,9 @@ import {authenticateJsonRequest} from "./auth.js";
 import {ensurePlayer} from "./db.js";
 import {playSlots,playMegaSlots,playWheel,playDice,playCoinflip,playBaccarat,startCrash,crashStatus,crashCashout} from "./casino.js";
 import {playAdvancedSlot} from "./advanced-slots.js";
+import {playMoreSlot} from "./more-slots.js";
+import {playJackpotSlot,jackpotStatus} from "./jackpot-slot.js";
+import {requestVirtualChips} from "./virtual-chips.js";
 import {playBalancedPlinko} from "./plinko.js";
 import {RussianRouletteDO,createRouletteRoom,joinRouletteRoom,resumeRouletteRoom,listRouletteRooms,rouletteWs} from "./roulette.js";
 
@@ -20,18 +23,38 @@ export class PokerTableDO extends BasePokerTableDO{
 }
 
 export default{
-  async fetch(request,env,ctx){const url=new URL(request.url);if(url.pathname.startsWith("/ws/roulette/"))return rouletteWs(request,env,url);if(url.pathname.startsWith("/api/casino/"))return handleCasinoApi(request,env,url);return baseWorker.fetch(request,env,ctx);},
+  async fetch(request,env,ctx){
+    const url=new URL(request.url);
+    if(url.pathname.startsWith("/ws/roulette/"))return rouletteWs(request,env,url);
+    if(url.pathname==="/api/virtual-chips/request")return handleVirtualChipApi(request,env);
+    if(url.pathname.startsWith("/api/casino/"))return handleCasinoApi(request,env,url);
+    return baseWorker.fetch(request,env,ctx);
+  },
   async scheduled(controller,env,ctx){return baseWorker.scheduled?.(controller,env,ctx);}
 };
 
+async function authenticatePlayer(request,env){
+  if(request.method!=="POST")return {response:json({ok:false,error:"POST_REQUIRED"},405)};
+  const auth=await authenticateJsonRequest(request,env);if(!auth.ok)return {response:json({ok:false,error:auth.error},401)};
+  try{await ensurePlayer(env,auth.user);}catch(error){return {response:json({ok:false,error:String(error?.message||"PLAYER_ERROR")},403)};}
+  return {auth,userId:String(auth.user.id),body:auth.body||{}};
+}
+
+async function handleVirtualChipApi(request,env){
+  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
+  try{return json({ok:true,...await requestVirtualChips(env,a.userId,a.auth.user)});}catch(error){console.error("virtual chips",error);return json({ok:false,error:String(error?.message||"REQUEST_ERROR")},400);}
+}
+
 async function handleCasinoApi(request,env,url){
-  if(request.method!=="POST")return json({ok:false,error:"POST_REQUIRED"},405);const auth=await authenticateJsonRequest(request,env);if(!auth.ok)return json({ok:false,error:auth.error},401);
-  try{await ensurePlayer(env,auth.user);}catch(error){return json({ok:false,error:String(error?.message||"PLAYER_ERROR")},403);}
-  const userId=String(auth.user.id),body=auth.body||{};
+  const a=await authenticatePlayer(request,env);if(a.response)return a.response;
+  const {auth,userId,body}=a;
   try{
     if(url.pathname==="/api/casino/slots")return json({ok:true,...await playSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/mega-slots")return json({ok:true,...await playMegaSlots(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/advanced-slot/spin")return json({ok:true,...await playAdvancedSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/more-slot/spin")return json({ok:true,...await playMoreSlot(env,userId,body.slotId,body.bet,body.requestId||crypto.randomUUID())});
+    if(url.pathname==="/api/casino/jackpot/status")return json({ok:true,...await jackpotStatus(env)});
+    if(url.pathname==="/api/casino/jackpot/spin")return json({ok:true,...await playJackpotSlot(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/wheel")return json({ok:true,...await playWheel(env,userId,body.bet,body.requestId||crypto.randomUUID())});
     if(url.pathname==="/api/casino/dice")return json({ok:true,...await playDice(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice,body.target)});
     if(url.pathname==="/api/casino/coinflip")return json({ok:true,...await playCoinflip(env,userId,body.bet,body.requestId||crypto.randomUUID(),body.choice)});
