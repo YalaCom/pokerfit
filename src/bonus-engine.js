@@ -7,13 +7,24 @@ const WILD="🃏",SCATTER="🌟",MONEY="💰";
 const MIN_BET=1000,MAX_BET=5_000_000,MAX_WIN_MULTIPLIER=1000;
 
 const BUY_TIERS={
-  standard:{id:"standard",label:"FREE SPINS",costMultiplier:60,extraSpins:0,initialWilds:0,wildBoost:1},
-  premium:{id:"premium",label:"WILD BOOST",costMultiplier:100,extraSpins:2,initialWilds:1,wildBoost:1.35},
-  super:{id:"super",label:"SUPER MULTI",costMultiplier:180,extraSpins:4,initialWilds:2,wildBoost:1.75}
+  standard:{id:"standard",label:"FREE SPINS",costMultiplier:60,extraSpins:0,initialWilds:0,wildBoost:1,wildRate:.34},
+  premium:{id:"premium",label:"WILD BOOST",costMultiplier:100,extraSpins:2,initialWilds:1,wildBoost:1.22,wildRate:.43},
+  super:{id:"super",label:"SUPER MULTI",costMultiplier:180,extraSpins:4,initialWilds:2,wildBoost:1.5,wildRate:.52}
 };
 
 const NATURAL_CHANCE={
   royal5:90,neon8:120,vault5:105,moon5:95,dragon6:125,grandjackpot:115
+};
+
+// Existing bonus generators were producing too many WILDs. These values are
+// the probability that a newly generated (non-sticky) bonus WILD survives.
+const BONUS_WILD_KEEP={
+  royal5:4200,
+  neon8:3500,
+  vault5:3200,
+  moon5:4000,
+  dragon6:3400,
+  grandjackpot:3000
 };
 
 const GRAND_CFG={
@@ -47,26 +58,33 @@ export function maybeInjectNaturalBonus(slotId,result,bet){
   return out;
 }
 
-export function decorateMultiplierWilds(slotId,result){
+// This is the single source of truth for visible WILDs and their money value.
+// Bonus frames are cleaned first, then paylines are recalculated from the
+// cleaned field, then multiplier-WILDs are applied to those exact paylines.
+export function decorateMultiplierWilds(slotId,result,bet=10000){
+  slotId=String(slotId||"");bet=Math.max(1,Number(bet)||1);
   const out=clone(result||{});let extra=0;
+
   if(Array.isArray(out.grid)){
     const promoted=promoteGrid(out.grid,false,new Map());
     out.grid=promoted.grid;
-    if(out.base?.lines){const adj=applyLineMultipliers(out.base.lines,out.grid);out.base.lines=adj.lines;out.base.payout=Math.max(0,Number(out.base.payout||0)+adj.extra);extra+=adj.extra;}
-    else if(Array.isArray(out.lines)){const adj=applyLineMultipliers(out.lines,out.grid);out.lines=adj.lines;extra+=adj.extra;}
-  }
-  if(out.bonus?.frames?.length){
-    const stickyMult=new Map();
-    for(const frame of out.bonus.frames){
-      if(!Array.isArray(frame.grid))continue;
-      const promoted=promoteGrid(frame.grid,true,stickyMult,frame.sticky||[]);
-      frame.grid=promoted.grid;
-      const adj=applyLineMultipliers(frame.lines||[],frame.grid);
-      frame.lines=adj.lines;frame.payout=Math.max(0,Number(frame.payout||0)+adj.extra);
+    if(out.base?.lines){
+      const adj=applyLineMultipliers(out.base.lines,out.grid);
+      out.base.lines=adj.lines;
+      out.base.payout=Math.max(0,Number(out.base.payout||0)+adj.extra);
       extra+=adj.extra;
+    }else if(Array.isArray(out.lines)){
+      const adj=applyLineMultipliers(out.lines,out.grid);
+      out.lines=adj.lines;extra+=adj.extra;
     }
-    out.bonus.payout=(out.bonus.frames||[]).reduce((s,f)=>s+Math.max(0,Number(f.payout||0)),0);
   }
+
+  if(out.bonus?.frames?.length){
+    const normalized=normalizeVisibleBonus(slotId,out.bonus,bet);
+    out.bonus=normalized.bonus;
+    extra+=normalized.multiplierExtra;
+  }
+
   out.multiplierWildExtra=extra;
   return out;
 }
@@ -81,19 +99,20 @@ export async function playBonusBuy(env,userId,slotId,bet,tierId,requestId){
 
   const cost=Math.floor(bet*tier.costMultiplier),roundId=crypto.randomUUID();
   const feature=createFeature(slotId,bet,tier.id,{natural:false});
-  const strength=pickPurchaseStrength(tier.id);
-  const cap=Math.floor(bet*strength.capMultiplier);
   const rawPayout=Math.max(0,Math.floor(feature.payout));
-  const payout=Math.min(bet*MAX_WIN_MULTIPLIER,rawPayout,cap);
-  scaleFeatureTo(feature.bonus,payout);
-  const metadata={game:`BONUS_BUY_${slotId}`,slotId,roundId,bet,cost,tier:tier.id,payout,rawPayout,strength,result:{bonusTriggered:true,purchasedBonus:true,bonus:feature.bonus,slotId}};
+  const maxWin=bet*MAX_WIN_MULTIPLIER;
+  const payout=Math.min(maxWin,rawPayout);
+  if(rawPayout>maxWin)scaleFeatureTo(feature.bonus,payout);
+  const actualTier=payoutTier(payout,bet);
+  feature.bonus.payoutTier=actualTier;
+  const metadata={game:`BONUS_BUY_${slotId}`,slotId,roundId,bet,cost,tier:tier.id,payout,rawPayout,result:{bonusTriggered:true,purchasedBonus:true,bonus:feature.bonus,slotId,bonusTier:actualTier}};
   const d=await debit(env,userId,cost,`CASINO_BONUS_BUY_${slotId}`,key,metadata);
   if(!d.applied){const existing=await tx(env,key);if(existing)return replay(env,userId,existing);throw new Error("DUPLICATE_REQUEST");}
   let balance=d.balance;
   if(payout>0){const c=await credit(env,userId,payout,`CASINO_BONUS_BUY_${slotId}_PAYOUT`,`casino:BONUS_BUY:${slotId}:payout:${roundId}`,metadata);balance=c.balance;}
   else await zeroLedger(env,userId,`CASINO_BONUS_BUY_${slotId}_RESULT`,`casino:BONUS_BUY:${slotId}:result:${roundId}`,metadata);
   await recordSlotRound(env,slotId,userId,roundId,cost,payout);
-  return {roundId,slotId,bet,cost,tier:tier.id,payout,multiplier:round2(payout/Math.max(1,bet)),balance,maxWin:bet*MAX_WIN_MULTIPLIER,result:metadata.result};
+  return {roundId,slotId,bet,cost,tier:tier.id,payout,multiplier:round2(payout/Math.max(1,bet)),balance,maxWin,result:metadata.result};
 }
 
 function createFeature(slotId,bet,tierId,{natural=false}={}){
@@ -101,13 +120,16 @@ function createFeature(slotId,bet,tierId,{natural=false}={}){
   if(!cfg)throw new Error("BONUS_BUY_NOT_AVAILABLE");
   const sticky=new Map();
   const initialCount=natural?0:tier.initialWilds;
-  for(let i=0;i<initialCount;i++){const pos=randomOpen(cfg,sticky);if(pos)sticky.set(key(...pos),pickWildMultiplier(true,tier.wildBoost));}
+  for(let i=0;i<initialCount;i++){
+    const pos=randomOpen(cfg,sticky);
+    if(pos)sticky.set(key(...pos),pickWildMultiplier(true,tier.wildBoost));
+  }
 
   let remaining=Math.min(14,Number(cfg.bonusSpins||6)+tier.extraSpins),spinNo=0,total=0,reactor=1,moneyCount=0,lastVault=Math.floor(sticky.size/4);
   const frames=[],maxFrames=tierId==="super"?16:14;
   while(remaining>0&&spinNo<maxFrames){
     remaining--;spinNo++;
-    const baseGrid=spinGrid(cfg,sticky),newSticky=[];
+    const baseGrid=spinGrid(cfg,sticky,tier.wildRate),newSticky=[];
     for(let r=0;r<cfg.rows;r++)for(let c=0;c<cfg.cols;c++){
       if(baseGrid[r][c]===WILD&&!sticky.has(key(r,c))){
         const mult=pickWildMultiplier(true,tier.wildBoost);
@@ -120,7 +142,11 @@ function createFeature(slotId,bet,tierId,{natural=false}={}){
     if(slotId==="neon8"){reactor=Math.min(5,round2(1+sticky.size*.18+sumStickyBoost(sticky)*.03));globalMultiplier=reactor;}
     if(slotId==="vault5"){
       const threshold=Math.floor(sticky.size/4);
-      if(threshold>lastVault&&spinNo+remaining<maxFrames){const pos=randomOpen(cfg,sticky);if(pos){const mult=pickWildMultiplier(true,tier.wildBoost);sticky.set(key(...pos),mult);baseGrid[pos[0]][pos[1]]=WILD;lockAdded=[...pos,mult];remaining++;addedSpins++;}lastVault=Math.floor(sticky.size/4);}
+      if(threshold>lastVault&&spinNo+remaining<maxFrames){
+        const pos=randomOpen(cfg,sticky);
+        if(pos){const mult=pickWildMultiplier(true,tier.wildBoost);sticky.set(key(...pos),mult);baseGrid[pos[0]][pos[1]]=WILD;lockAdded=[...pos,mult];remaining++;addedSpins++;}
+        lastVault=Math.floor(sticky.size/4);
+      }
       globalMultiplier=Math.min(4,1+Math.floor(sticky.size/6)*.5);
     }
     if(slotId==="moon5")globalMultiplier=Math.min(4,round2(1+(spinNo-1)*.35));
@@ -143,6 +169,58 @@ function createFeature(slotId,bet,tierId,{natural=false}={}){
   return {bonus,payout:total};
 }
 
+function normalizeVisibleBonus(slotId,bonus,bet){
+  const cfg=featureConfig(slotId);if(!cfg)return {bonus,multiplierExtra:0};
+  const out=clone(bonus),frames=out.frames||[];
+  let stickyMult=new Map(),total=0,multiplierExtra=0;
+
+  out.frames=frames.map(frame=>{
+    const originalSticky=new Set((frame.sticky||[]).map(p=>key(p[0],p[1])));
+    const previousSticky=new Map(stickyMult);
+    const raw=toRawWildGrid(frame.grid||[]);
+    const cleaned=thinBonusWilds(slotId,cfg,raw,previousSticky);
+
+    // Only visible WILDs are allowed to stay sticky on following spins.
+    const nextSticky=new Map();
+    for(const k of originalSticky){
+      const [r,c]=parseKey(k);
+      if(cleaned?.[r]?.[c]===WILD){
+        const existing=previousSticky.get(k);
+        nextSticky.set(k,existing||pickWildMultiplier(true,1));
+      }
+    }
+    stickyMult=nextSticky;
+
+    const globalMultiplier=Math.max(1,Number(frame.bonusMultiplier||1));
+    const evaluated=evaluateAdvancedGrid(cfg,cleaned,bet,globalMultiplier);
+    const displayed=promoteGridWithSticky(cleaned,stickyMult,true);
+    const adjusted=applyLineMultipliers(evaluated.lines||[],displayed.grid);
+    const payout=Math.max(0,Number(evaluated.payout||0)+adjusted.extra);
+    multiplierExtra+=adjusted.extra;total+=payout;
+
+    const previousKeys=new Set(previousSticky.keys());
+    const newSticky=[...stickyMult.entries()].filter(([k])=>!previousKeys.has(k)).map(([k,m])=>[...parseKey(k),m]);
+    return {...frame,grid:displayed.grid,sticky:[...stickyMult.entries()].map(([k,m])=>[...parseKey(k),m]),newSticky,payout,lines:adjusted.lines,scatterCount:evaluated.scatterCount};
+  });
+
+  out.payout=total;
+  out.totalSpins=out.frames.length;
+  out.finalSticky=out.frames.at(-1)?.sticky||[];
+  out.payoutTier=payoutTier(total,bet);
+  return {bonus:out,multiplierExtra};
+}
+
+function thinBonusWilds(slotId,cfg,grid,previousSticky){
+  const out=clone(grid),keep=BONUS_WILD_KEEP[slotId]||3500;
+  for(let r=0;r<out.length;r++)for(let c=0;c<out[r].length;c++){
+    const k=key(r,c);
+    if(previousSticky.has(k)){out[r][c]=WILD;continue;}
+    if(out[r][c]!==WILD)continue;
+    if(secureInt(10000)>=keep)out[r][c]=randomRegularSymbol(cfg);
+  }
+  return out;
+}
+
 function featureConfig(slotId){
   return ADVANCED_SLOT_CONFIGS[slotId]||MORE_SLOT_CONFIGS[slotId]||(slotId==="grandjackpot"?GRAND_CFG:null);
 }
@@ -151,8 +229,11 @@ function bonusName(id){
   return ({royal5:"STICKY PARTY",neon8:"WILD REACTOR",vault5:"VAULT LOCK",moon5:"MOON ASCENSION",dragon6:"DRAGON RESPINS",grandjackpot:"FORTUNE VAULT"})[id]||"FREE SPINS";
 }
 
-function spinGrid(cfg,sticky){
-  const weights=cfg.bonusWeights||cfg.weights,symbols=cfg.symbols;
+function spinGrid(cfg,sticky,wildRate=.34){
+  const sourceWeights=cfg.bonusWeights||cfg.weights;
+  const weights=[...sourceWeights],symbols=cfg.symbols;
+  const wi=symbols.indexOf(WILD);
+  if(wi>=0)weights[wi]=Math.max(.05,Number(weights[wi]||0)*Math.max(.1,Math.min(.8,wildRate)));
   const grid=Array.from({length:cfg.rows},()=>Array(cfg.cols));
   for(let r=0;r<cfg.rows;r++)for(let c=0;c<cfg.cols;c++){
     const k=key(r,c);grid[r][c]=sticky.has(k)?WILD:weightedPick(symbols,weights);
@@ -173,15 +254,31 @@ function promoteGrid(grid,bonusMode,stickyMap,stickyPositions=[]){
   return {grid:out};
 }
 
+function promoteGridWithSticky(grid,stickyMap,bonusMode){
+  const out=clone(grid);
+  for(let r=0;r<out.length;r++)for(let c=0;c<out[r].length;c++){
+    if(out[r][c]!==WILD)continue;
+    const k=key(r,c);
+    let mult=stickyMap.get(k);
+    if(!mult)mult=pickWildMultiplier(bonusMode,1);
+    if(stickyMap.has(k))stickyMap.set(k,mult);
+    out[r][c]=wildLabel(mult);
+  }
+  return {grid:out};
+}
+
 function displayGrid(grid,sticky){
   return grid.map((row,r)=>row.map((symbol,c)=>symbol===WILD&&sticky.has(key(r,c))?wildLabel(sticky.get(key(r,c))):symbol));
 }
 
+// Multiplier-WILDs are intentionally rare. x10 is exceptional, x5 uncommon,
+// x2 occasional. Purchased premium/super bonuses increase them, but do not
+// make them common.
 function pickWildMultiplier(bonusMode,boost=1){
   const roll=secureInt(100000);
-  const x10=Math.min(4000,Math.floor((bonusMode?1800:350)*boost));
-  const x5=x10+Math.min(12000,Math.floor((bonusMode?8000:2200)*boost));
-  const x2=x5+Math.min(40000,Math.floor((bonusMode?26000:10000)*boost));
+  const x10=Math.min(700,Math.floor((bonusMode?150:30)*boost));
+  const x5=x10+Math.min(3000,Math.floor((bonusMode?800:250)*boost));
+  const x2=x5+Math.min(9000,Math.floor((bonusMode?4000:1500)*boost));
   if(roll<x10)return 10;if(roll<x5)return 5;if(roll<x2)return 2;return 1;
 }
 
@@ -201,6 +298,8 @@ function wildMultiplier(symbol){
   const m=String(symbol||"").match(/🃏×(2|5|10)/);return m?Number(m[1]):1;
 }
 function wildLabel(mult){return mult>1?`🃏×${mult}`:WILD;}
+function toRawWildGrid(grid){return clone(grid).map(row=>row.map(symbol=>String(symbol||"").startsWith("🃏")?WILD:symbol));}
+function randomRegularSymbol(cfg){const regular=(cfg.symbols||[]).filter(s=>s!==WILD&&s!==SCATTER&&s!==MONEY);return regular.length?regular[secureInt(regular.length)]:(cfg.symbols||[])[0];}
 
 function forceScatters(grid,cfg,count){
   const out=Array.isArray(grid)?clone(grid):Array.from({length:cfg.rows},()=>Array(cfg.cols).fill(cfg.symbols[0]));
@@ -208,26 +307,16 @@ function forceScatters(grid,cfg,count){
   shuffle(positions);for(const [r,c] of positions.slice(0,count))out[r][c]=SCATTER;return out;
 }
 
-function pickPurchaseStrength(tier){
-  const roll=secureInt(10000);
-  if(tier==="super"){
-    if(roll<4500)return {name:"SMALL",capMultiplier:60};
-    if(roll<8300)return {name:"MEDIUM",capMultiplier:180};
-    if(roll<9850)return {name:"BIG",capMultiplier:500};
-    return {name:"MAX",capMultiplier:1000};
-  }
-  if(tier==="premium"){
-    if(roll<5600)return {name:"SMALL",capMultiplier:40};
-    if(roll<9000)return {name:"MEDIUM",capMultiplier:130};
-    if(roll<9900)return {name:"BIG",capMultiplier:400};
-    return {name:"MAX",capMultiplier:1000};
-  }
-  if(roll<6800)return {name:"SMALL",capMultiplier:25};
-  if(roll<9300)return {name:"MEDIUM",capMultiplier:90};
-  if(roll<9950)return {name:"BIG",capMultiplier:300};
-  return {name:"MAX",capMultiplier:1000};
+function payoutTier(payout,bet){
+  const mult=Math.max(0,Number(payout||0))/Math.max(1,Number(bet||1));
+  if(mult>=1000)return "MAX";
+  if(mult>=120)return "BIG";
+  if(mult>=30)return "MEDIUM";
+  return "SMALL";
 }
 
+// Used only when the mathematically calculated field exceeds MAX WIN x1000.
+// It never turns a visually huge field into a small/medium payout.
 function scaleFeatureTo(bonus,target){
   const raw=Math.max(0,Number(bonus?.payout||0)),ratio=raw>0?Math.min(1,target/raw):1;
   if(Array.isArray(bonus?.frames)){
