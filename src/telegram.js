@@ -1,5 +1,6 @@
 import { ensurePlayer, getPlayer } from "./db.js";
 import {resolveVirtualChipRequest,notifyVirtualChipResolution,answerVirtualChipCallback} from "./virtual-chips.js";
+import {approveFriendExchangeRequest,notifyFriendExchangeResolution,answerFriendExchangeCallback} from "./friend-exchange.js";
 
 export async function telegramApi(token,method,payload) {
   const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{
@@ -66,6 +67,16 @@ export async function handleTelegramWebhook(request,env) {
           const result=await resolveVirtualChipRequest(env,cb.from.id,requestId,action);
           await answerVirtualChipCallback(env,cb,result.approved?"Фишки начислены":result.rejected?"Заявка отклонена":"Уже обработано");
           if(result.request)await notifyVirtualChipResolution(env,result.request,!!result.approved,result.balance);
+        }catch(error){
+          await telegramApi(env.TELEGRAM_BOT_TOKEN,"answerCallbackQuery",{callback_query_id:cb.id,text:String(error?.message||"Ошибка"),show_alert:true});
+        }
+      }else if(data.startsWith("fx:")){
+        const [,action,requestId]=data.split(":");
+        try{
+          if(action!=="approve")throw new Error("BAD_ACTION");
+          const result=await approveFriendExchangeRequest(env,cb.from.id,requestId);
+          await answerFriendExchangeCallback(env,cb,result.duplicate?"Уже обработано":"Подтверждено");
+          if(result.request)await notifyFriendExchangeResolution(env,result.request,result.balance);
         }catch(error){
           await telegramApi(env.TELEGRAM_BOT_TOKEN,"answerCallbackQuery",{callback_query_id:cb.id,text:String(error?.message||"Ошибка"),show_alert:true});
         }
