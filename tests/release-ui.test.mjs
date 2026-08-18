@@ -14,6 +14,15 @@ test("home contains exchange controls and jackpot in base HTML",()=>{
   assert.match(html,/GRAND JACKPOT/);
 });
 
+test("critical exchange and jackpot code is independent from app boot",()=>{
+  const entry=read("src/fresh-main.js");
+  const critical=read("public/critical-ui.js");
+  assert.match(entry,/critical-ui\.js/);
+  assert.match(critical,/friend-exchange\/topup/);
+  assert.match(critical,/friend-exchange\/withdraw/);
+  assert.match(critical,/casino\/jackpot\/status/);
+});
+
 test("required casino UI is booted by the main app",()=>{
   const app=read("public/app.js");
   assert.match(app,/initRequiredCasinoUI/);
