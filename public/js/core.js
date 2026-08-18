@@ -32,7 +32,7 @@ export function nav(name,{silent=false}={}){
   if(!silent&&location.hash!==`#${name}`)history.replaceState(null,"",`#${name}`);
   Promise.resolve(loaders.get(name)?.()).catch(e=>toast(e.message));
 }
-export function routeFromHash(){const name=location.hash.replace("#","")||"home";const allowed=["home","tables","blackjack","tournaments","rating","friends","rewards","profile","settings","notifications"];nav(allowed.includes(name)?name:"home",{silent:true});}
+export function routeFromHash(){const name=location.hash.replace("#","")||"home";const allowed=["home","tables","blackjack","casino","tournaments","rating","friends","rewards","profile","settings","notifications"];nav(allowed.includes(name)?name:"home",{silent:true});}
 
 export function renderAvatar(el,p){if(!el)return;el.innerHTML="";if(p?.photoUrl){const img=document.createElement("img");img.src=p.photoUrl;img.alt="";el.appendChild(img);}else el.textContent=(p?.firstName||"P")[0].toUpperCase();}
 export function showModal(html){$("modalBody").innerHTML=html;$("modal").classList.remove("hidden");}
