@@ -29,19 +29,28 @@ function installTiles(){
 
 function installWalletBar(){
   const lobby=$("casinoLobby"),hero=lobby?.querySelector(".casino-hero");if(!lobby||!hero||lobby.querySelector(".virtual-wallet-bar"))return;
-  const bar=document.createElement("div");bar.className="virtual-wallet-bar";
-  bar.innerHTML=`<button id="virtualChipRequest"><small>VIRTUAL CHIPS</small><b>+500K</b><span>ЗАПРОСИТЬ</span></button><button id="jackpotPoolButton" class="jackpot-pool-pill"><small>GRAND JACKPOT</small><b id="globalJackpotPool">—</b><span>ОБЩИЙ БАНК</span></button>`;
+  const bar=document.createElement("div");bar.className="virtual-wallet-bar friend-exchange-bar";
+  bar.innerHTML=`
+    <button id="friendTopupButton" class="exchange-topup"><small>ПОПОЛНИТЬ</small><b>500K</b><span>ЗА 1 ₽</span></button>
+    <button id="friendWithdrawButton" class="exchange-withdraw"><small>ВЫВЕСТИ</small><b>1M</b><span>ЗА 1 ₽</span></button>
+    <button id="jackpotPoolButton" class="jackpot-pool-pill"><small>GRAND JACKPOT</small><b id="globalJackpotPool">—</b><span>ОБЩИЙ БАНК</span></button>`;
   hero.insertAdjacentElement("afterend",bar);
-  $("virtualChipRequest").onclick=requestChips;
+  $("friendTopupButton").onclick=()=>requestExchange("topup");
+  $("friendWithdrawButton").onclick=()=>requestExchange("withdraw");
   $("jackpotPoolButton").onclick=()=>document.querySelector('[data-casino-game="grandjackpot"]')?.click();
   refreshJackpotPool();
 }
 
-async function requestChips(){
-  const b=$("virtualChipRequest");if(!b)return;b.disabled=true;
-  try{const d=await api("/api/virtual-chips/request");toast(d.alreadyPending?"Заявка уже ждёт подтверждения":"Заявка на +500K отправлена администратору");haptic("success");}
-  catch(e){toast(e.message==="REQUEST_COOLDOWN"?"Подожди несколько минут перед новой заявкой":e.message);}
-  finally{b.disabled=false;}
+async function requestExchange(kind){
+  const button=$(kind==="topup"?"friendTopupButton":"friendWithdrawButton");if(!button)return;button.disabled=true;
+  try{
+    const d=await api(kind==="topup"?"/api/friend-exchange/topup":"/api/friend-exchange/withdraw");
+    if(d.alreadyPending)toast("Такая заявка уже ждёт подтверждения");
+    else toast(kind==="topup"?"Пополнение 500K за 1 ₽ отправлено на подтверждение":"1M фишек списан и добавлен в Jackpot. Вывод на 1 ₽ ждёт подтверждения");
+    if(kind==="withdraw"){await refreshBootstrap();await refreshJackpotPool();}
+    haptic("success");
+  }catch(e){toast(e.message==="INSUFFICIENT_FUNDS"?"Для вывода нужен баланс минимум 1M":e.message);}
+  finally{button.disabled=false;}
 }
 async function refreshJackpotPool(){try{const d=await api("/api/casino/jackpot/status");if($("globalJackpotPool"))$("globalJackpotPool").textContent=chipsShort(d.pool);}catch{}}
 
