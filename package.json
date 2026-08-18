@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs",
-    "deploy": "node scripts/deploy.mjs",
+    "deploy": "npm run check && node scripts/deploy.mjs",
     "dev": "npx wrangler dev"
   },
   "devDependencies": {
