@@ -3,70 +3,83 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#050807">
-  <title>FIT Poker Club</title>
+  <meta name="theme-color" content="#0c0c12">
+  <title>Два Алексея — интерактивная история</title>
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div id="splash" class="splash">
-    <div class="splash-logo"><span class="spade">♠</span><i></i></div>
-    <div class="splash-name">FIT POKER</div>
-    <div class="splash-status">CONNECTING TO CLUB…</div>
-  </div>
-  <div id="toast" class="toast"></div><div id="fxLayer" class="fx-layer"></div>
-  <main id="app" class="app hidden">
-    <header class="topbar">
-      <button class="brand" data-nav="home" aria-label="Главная"><span class="brand-mark">♠</span><span><b>FIT POKER</b><small>PRIVATE CLUB</small></span></button>
-      <div class="top-actions"><button id="notificationButton" class="icon-btn" aria-label="Уведомления"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9 21h6"/></svg><i id="notificationDot" class="dot hidden"></i></button><div class="balance-pill"><small>BALANCE</small><b id="topBalance">0</b></div></div>
-    </header>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
 
-    <section id="view-home" class="view active">
-      <article class="hero-card"><div class="hero-glow"></div><div class="eyebrow">PLAYER</div><div class="hero-row"><div><h1 id="homeName">Игрок</h1><span id="homeLevel" class="level-pill">LEVEL 1</span></div><div id="homeAvatar" class="avatar">P</div></div><div class="hero-balance"><small>CHIP BALANCE</small><strong id="homeBalance">0</strong></div></article>
-
-      <div id="homeExchangeBar" class="home-exchange-bar">
-        <button id="homeTopup"><small>ПОПОЛНИТЬ</small><b>500K</b><span>ЗА 1 ₽</span></button>
-        <button id="homeWithdraw"><small>ВЫВЕСТИ</small><b>1M</b><span>ЗА 1 ₽</span></button>
+  <main id="app" class="shell">
+    <section id="startScreen" class="start-screen">
+      <div class="cover-art" id="coverArt"></div>
+      <div class="cover-copy">
+        <div class="kicker">ИНТЕРАКТИВНАЯ ИСТОРИЯ</div>
+        <h1>ДВА АЛЕКСЕЯ<br><span>ОДИН ДЕНЬ</span></h1>
+        <p>Один длинный день, десятки решений и разные финалы. Выбирай, как провести его вдвоём.</p>
       </div>
-      <button id="requiredHomeJackpot" class="required-home-jackpot">
-        <div class="rhj-top"><span>💰 GRAND JACKPOT</span><em>1 / 250 000</em></div>
-        <strong id="requiredHomeJackpotValue">0</strong>
-        <small>Банк пополняется чистыми проигрышами игроков</small>
-        <div class="rhj-bottom"><span>GRAND FORTUNE</span><b>ИГРАТЬ →</b></div>
-      </button>
 
-      <div class="live-strip"><span><i></i><b id="onlinePlayers">0</b> онлайн</span><span><b id="onlineTables">0</b> столов</span><span><b id="onlineTournaments">0</b> турниров</span></div><div id="resumeHolder"></div>
-      <div class="section-head"><span>ИГРАТЬ</span></div>
-      <div class="game-grid">
-        <button class="game-tile poker-tile" id="quickPokerButton"><span class="tile-symbol">♠</span><strong>POKER</strong><small>Texas Hold’em<br>живые столы 2–9</small><em>QUICK PLAY →</em></button>
-        <button class="game-tile blackjack-tile" data-nav="blackjack"><span class="tile-symbol">◆</span><strong>BLACKJACK</strong><small>Серверный крупье<br>честная колода</small><em>PLAY →</em></button>
+      <div class="role-title">КЕМ ИГРАЕМ?</div>
+      <div class="role-grid">
+        <button class="role-card" data-role="kozyr">
+          <div class="role-avatar kozyr">К</div>
+          <span>Играть за</span>
+          <b>АЛЕКСЕЯ КОЗЫРЯ</b>
+        </button>
+        <button class="role-card" data-role="kharlamov">
+          <div class="role-avatar kharlamov">Х</div>
+          <span>Играть за</span>
+          <b>АЛЕКСЕЯ ХАРЛАМОВА</b>
+        </button>
       </div>
-      <div class="home-actions"><button class="line-card" data-nav="tables"><span><b>Столы</b><small>Публичные и приватные комнаты</small></span><i>→</i></button><button class="line-card" data-nav="tournaments"><span><b>Турниры</b><small>Daily Million и Sunday Main Event</small></span><i>→</i></button><button class="line-card" data-nav="rewards"><span><b>Награды</b><small>Серия входов и достижения</small></span><i>→</i></button></div>
-      <div class="section-head"><span>ЛЕНТА КЛУБА</span></div><div id="feedList" class="feed-list"><div class="empty">Пока нет сыгранных раздач.</div></div>
+
+      <button id="continueButton" class="continue-button hidden">ПРОДОЛЖИТЬ ИСТОРИЮ</button>
+      <div class="cover-note">Стилизованные персонажи не копируют внешность реальных людей.</div>
     </section>
 
-    <section id="view-tables" class="view"><div class="page-title"><div><small>POKER ROOM</small><h2>Столы</h2></div><button class="ghost-btn" id="createPrivateButton">+ PRIVATE</button></div><div class="tier-tabs" id="tierTabs"><button data-tier="all" class="active">Все</button><button data-tier="novice">Новичок</button><button data-tier="amateur">Любитель</button><button data-tier="pro">Pro</button><button data-tier="high">High</button></div><div class="join-code"><input id="roomCodeInput" maxlength="8" placeholder="КОД КОМНАТЫ"><input id="roomPasswordInput" type="password" placeholder="ПАРОЛЬ (если есть)"><button id="joinPrivateButton">ВОЙТИ</button></div><div id="tablesList" class="cards-list"></div></section>
+    <section id="gameScreen" class="game-screen hidden">
+      <header class="story-header">
+        <button id="homeButton" class="round-button" aria-label="В меню"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg></button>
+        <div class="chapter-box"><small id="chapterLabel">ГЛАВА 1</small><b id="timeLabel">07:12</b></div>
+        <button id="restartButton" class="round-button" aria-label="Начать заново"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+      </header>
 
-    <section id="view-table" class="view table-view">
-      <div class="table-top"><button class="icon-btn" id="leaveTableButton">×</button><div><small id="tableMode">CASH GAME</small><h2 id="tableName">FIT Table</h2></div><button class="icon-btn" id="sitoutButton">Ⅱ</button></div>
-      <div id="pokerArena" class="poker-arena"><div class="felt-ring"></div><div id="tableSeats"></div><div class="center-board"><div id="potLabel" class="pot-label">POT 0</div><div id="boardCards" class="board-cards"></div><div id="handLabel" class="hand-label"></div></div><div id="turnTimer" class="turn-timer hidden"><span>20</span></div><div id="allInFlash" class="allin-flash hidden">ALL-IN</div><div id="finalTableFlash" class="final-flash hidden">FINAL TABLE</div></div>
-      <div id="actionPanel" class="action-panel hidden"><div id="raisePanel" class="raise-panel hidden"><div class="raise-value"><span>BET</span><b id="raiseValue">0</b></div><input id="raiseSlider" type="range" min="0" max="100" value="0"><div class="pot-presets"><button data-pot="0.33">1/3 POT</button><button data-pot="0.5">1/2 POT</button><button data-pot="0.67">2/3 POT</button><button data-pot="1">POT</button></div></div><div id="actionButtons" class="action-buttons"></div></div>
-      <div class="quick-chat"><button>Хорошая игра</button><button>Nice Hand</button><button>GG</button><button>Wow</button></div><div id="tableEvents" class="table-events"></div>
+      <div class="progress-track"><i id="progressBar"></i></div>
+      <section id="sceneArt" class="scene-art"></section>
+
+      <section class="scene-card">
+        <div class="scene-meta"><span id="locationLabel">КВАРТИРА</span><span id="sceneCounter">1 / 45</span></div>
+        <h2 id="sceneTitle">Утро</h2>
+        <div id="sceneText" class="scene-text"></div>
+        <div id="choices" class="choices"></div>
+      </section>
+
+      <section class="relationship-panel">
+        <div class="person-chip"><div id="playerAvatar" class="mini-avatar">К</div><span><small>ТЫ</small><b id="playerName">Алексей</b></span></div>
+        <div class="meters">
+          <div><span>ТЕПЛО</span><i><b id="warmthBar"></b></i><em id="warmthValue">50</em></div>
+          <div><span>ДОВЕРИЕ</span><i><b id="trustBar"></b></i><em id="trustValue">50</em></div>
+          <div><span>ХАОС</span><i><b id="chaosBar"></b></i><em id="chaosValue">10</em></div>
+        </div>
+        <div class="person-chip right"><span><small>РЯДОМ</small><b id="partnerName">Алексей</b></span><div id="partnerAvatar" class="mini-avatar">Х</div></div>
+      </section>
     </section>
 
-    <section id="view-blackjack" class="view"><div class="page-title"><div><small>CASINO TABLE</small><h2>Blackjack</h2></div><span class="rule-badge">3:2</span></div><div class="blackjack-table"><div class="bj-hand-title">DEALER <b id="dealerValue">—</b></div><div id="dealerCards" class="bj-cards"></div><div class="bj-chip-stack"><i></i><i></i><i></i><span id="bjPot">0</span></div><div class="bj-hand-title">YOU <b id="playerValue">—</b></div><div id="playerCards" class="bj-cards"></div></div><div id="bjResult" class="result-banner hidden"></div><div id="bjBetPanel" class="bet-box"><label>СТАВКА</label><input id="bjBet" type="number" inputmode="numeric" min="1000" step="1000" value="10000"><div class="bet-presets"><button>10K</button><button>50K</button><button>100K</button><button>MAX</button></div><button id="bjDealButton" class="gold-button">РАЗДАТЬ КАРТЫ</button></div><div id="bjActions" class="bj-actions hidden"><button data-action="hit">HIT</button><button data-action="stand">STAND</button><button data-action="double">DOUBLE</button></div><button id="bjNewGame" class="gold-button hidden">НОВАЯ ИГРА</button></section>
-
-    <section id="view-tournaments" class="view"><div class="page-title"><div><small>TOURNAMENT LOBBY</small><h2>Турниры</h2></div></div><div id="tournamentsList" class="cards-list"></div></section>
-    <section id="view-rating" class="view"><div class="page-title"><div><small>LEADERBOARD</small><h2>Рейтинг</h2></div></div><div id="ratingTabs" class="tier-tabs"><button data-rating="balance" class="active">Баланс</button><button data-rating="tournaments">Турниры</button><button data-rating="profit">Прибыль</button><button data-rating="xp">XP</button><button data-rating="season">Сезон</button></div><div id="ratingList" class="ranking-list"></div></section>
-    <section id="view-friends" class="view"><div class="page-title"><div><small>SOCIAL</small><h2>Друзья</h2></div></div><div class="friend-add"><input id="friendInput" placeholder="@username или Telegram ID"><button id="addFriendButton">ДОБАВИТЬ</button></div><div id="friendsList" class="cards-list"></div></section>
-    <section id="view-rewards" class="view"><div class="page-title"><div><small>REWARDS</small><h2>Награды</h2></div></div><div class="reward-hero"><span>DAILY STREAK</span><strong id="streakDay">DAY 1</strong><b id="streakAmount">50K</b><button id="claimStreakButton" class="gold-button">ЗАБРАТЬ</button></div><button id="claimFreeButton" class="line-card reward-line"><span><b>Бесплатная награда</b><small>Небольшой бонус раз в сутки</small></span><i>+25K</i></button><button id="lowHelpButton" class="line-card reward-line hidden"><span><b>Помощь после проигрыша</b><small>Если осталось меньше 50K • раз в сутки</small></span><i>+250K</i></button><div class="section-head"><span>ДОСТИЖЕНИЯ</span></div><div id="achievementsList" class="cards-list"></div></section>
-    <section id="view-profile" class="view"><div class="page-title"><div><small>POKER CARD</small><h2>Профиль</h2></div><button id="adminLink" class="ghost-btn hidden">ADMIN</button></div><article class="profile-card"><div id="profileAvatar" class="avatar xl">P</div><h2 id="profileName">Игрок</h2><span id="profileLevel" class="level-pill">LEVEL 1</span><strong id="profileBalance">0</strong><small>CHIPS</small></article><div id="profileStats" class="stats-grid"></div><div class="section-head"><span>ИСТОРИЯ РАЗДАЧ</span></div><div id="historyList" class="cards-list"></div><button class="line-card" data-nav="settings"><span><b>Настройки</b><small>Звук, вибрация, анимации</small></span><i>→</i></button></section>
-    <section id="view-settings" class="view"><div class="page-title"><div><small>PREFERENCES</small><h2>Настройки</h2></div></div><div class="settings-card"><label><span>Звуки</span><input type="checkbox" data-setting="sound"></label><label><span>Вибрация</span><input type="checkbox" data-setting="haptics"></label><label><span>Анимации</span><input type="checkbox" data-setting="animations"></label><label><span>Быстрые анимации</span><input type="checkbox" data-setting="fastAnimations"></label></div></section>
-    <section id="view-notifications" class="view"><div class="page-title"><div><small>INBOX</small><h2>Уведомления</h2></div></div><div id="notificationsList" class="cards-list"></div></section>
+    <section id="endingScreen" class="ending-screen hidden">
+      <div id="endingArt" class="ending-art"></div>
+      <div class="ending-copy">
+        <small>ФИНАЛ ИСТОРИИ</small>
+        <h2 id="endingTitle">Идеальный день</h2>
+        <p id="endingText"></p>
+        <div id="endingStats" class="ending-stats"></div>
+        <button id="replayButton" class="primary-button">ПРОЙТИ ЕЩЁ РАЗ</button>
+      </div>
+    </section>
   </main>
-  <nav id="bottomNav" class="bottom-nav"><button data-nav="home" class="active"><span>⌂</span>Главная</button><button data-nav="tournaments"><span>♛</span>Турниры</button><button data-nav="rating"><span>≡</span>Рейтинг</button><button data-nav="friends"><span>◎</span>Друзья</button><button data-nav="profile"><span>○</span>Профиль</button></nav>
-  <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
-  <div id="rescueOverlay" class="rescue-overlay hidden"><div class="loser-text">ТЫ ЛОХ</div><div id="rescueCountdown">15</div><small>Досмотри до конца → +50 000 фишек</small></div>
+
+  <div id="toast" class="toast"></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
