@@ -1,3 +1,3 @@
-FIT Casino Olympus straight-line release
-2026-08-19 23:46 +03:00
-RELEASE: rebuild OLYMPUS STORM win evaluation to real contiguous 3+ straight lines horizontally vertically and both diagonals / full-reel Olympus substitutes only inside the actual line / unrelated sticky Olympus never multiplies a natural win / yellow-Olympus-yellow and 3 naturals plus Olympus both pay correctly / multiple participating Olympus multipliers add only inside the same winning line / add visible line highlight and exact per-line lightning multiplier / keep x2 x5 x10 x500 rarity order and sticky bonus behavior / recalibrate line payout scale near 95.7 percent simulation / add 12 Olympus regression tests / all other casino systems preserved
+FIT Casino shared win-line presentation release
+2026-08-19 23:55 +03:00
+RELEASE: all five slots now highlight the exact winning symbols / draw a visible gold win route across the played strip or ways path / dim non-winning symbols / show a centered +WIN amount just below the reels in large but non-fullscreen text / Olympus keeps exact H V diagonal geometry / no payout math changes

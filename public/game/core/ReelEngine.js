@@ -8,7 +8,35 @@ export class ReelEngine{
   async stopOnGrid(grid,{anticipationReel=-1,stopDuration=.48,anticipationDuration=.88,staggerMs=64,anticipationStaggerMs=145,onAnticipation=async()=>{},onReelStop=()=>{},onScatterStop=()=>{}}={}){if(!validGrid(grid,this.config.rows,this.config.reels))throw new Error("INVALID_REEL_GRID");await wait(390);for(let c=0;c<this.reels.length;c++){const reel=this.reels[c],anticipating=c===anticipationReel;if(anticipating){reel.state=ReelState.ANTICIPATING;reel.stateTime=0;reel.velocity=Math.max(6,reel.maxVelocity*.4);await onAnticipation(c);await wait(650);}await this.#stopReel(reel,grid,c,anticipating?anticipationDuration:stopDuration);onReelStop(c);const scatterRows=[];for(let r=0;r<this.config.rows;r++)if(grid[r][c]===this.config.scatterSymbol)scatterRows.push(r);if(scatterRows.length)onScatterStop(c,scatterRows);await wait(anticipating?anticipationStaggerMs:staggerMs);}this.setGrid(grid);}
   setGrid(grid){if(!validGrid(grid,this.config.rows,this.config.reels))return;for(let c=0;c<this.reels.length;c++){const reel=this.reels[c],base=Math.floor(reel.position);for(let r=0;r<this.config.rows;r++)reel.strip[mod(base+r,reel.strip.length)]=grid[r][c];reel.position=base;reel.velocity=0;reel.container.y=0;reel.state=ReelState.STOPPED;this.#setBlur(reel,false);this.#render(reel);}}
   async animateCascade(cascade,particleManager){const removed=cascade.removed||[];for(const p of removed){const s=this.#spriteAt(p.r,p.c);if(!s)continue;const gp=s.getGlobalPosition();particleManager?.emit("symbolExplosion",gp.x,gp.y,{tint:0xffd775,count:this.quality==="LOW"?5:11});gsap.to(s,{alpha:0,duration:.13,ease:"power2.out"});gsap.to(s.scale,{x:s.scale.x*1.18,y:s.scale.y*1.18,duration:.13,ease:"power2.out"});}await wait(155);for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(s)s.alpha=0;}const temp=[];for(const d of cascade.drops||[]){const s=this.createSymbol(d.symbol);s.x=this.#cellX(d.to.c);s.y=d.from?this.#cellY(d.from.r):-(this.cellH*(.6+Math.random()*2.2));s.alpha=d.new?.94:1;this.#fitSprite(s,.8);this.dropLayer.addChild(s);temp.push(s);gsap.to(s,{y:this.#cellY(d.to.r),duration:(d.new?.34:.25)+Math.random()*.08,ease:d.new?"back.out(1.5)":"power2.inOut"});}await wait(405);for(const s of temp)s.destroy();this.setGrid(cascade.nextGrid);for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(s)s.alpha=1;}await wait(55);}
-  async animateWins(wins=[]){const positions=uniquePositions(wins.flatMap(w=>w.positions||[]));if(positions.length)await this.#animateWinningPositions(positions);}
+  async animateWins(wins=[]){
+    const valid=(wins||[]).filter(w=>Array.isArray(w?.positions)&&w.positions.length);
+    if(!valid.length)return;
+    const positions=uniquePositions(valid.flatMap(w=>w.positions||[]));
+    const winners=new Set(positions.map(p=>`${p.r}:${p.c}`));
+    const overlay=new this.PIXI.Container();overlay.zIndex=999;this.layer.addChild(overlay);
+    const routes=new this.PIXI.Graphics();overlay.addChild(routes);
+    for(const win of valid)this.#drawWinRoute(routes,win);
+    for(const p of positions){
+      const rect=this.cellRect(p.r,p.c);
+      const halo=new this.PIXI.Graphics().roundRect(rect.x+2,rect.y+2,Math.max(2,rect.width-4),Math.max(2,rect.height-4),Math.max(7,Math.min(16,rect.width*.16))).stroke({color:0xffe37b,width:Math.max(2,Math.min(4,rect.width*.055)),alpha:.96});
+      halo.alpha=.2;overlay.addChild(halo);gsap.to(halo,{alpha:1,duration:.12,yoyo:true,repeat:1,ease:"sine.inOut"});
+    }
+    for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){
+      const s=this.#spriteAt(r,reel.index);if(!s)continue;const hit=winners.has(`${r}:${reel.index}`);
+      gsap.to(s,{alpha:hit?1:.22,duration:.09,overwrite:true});
+      if(hit){const bx=s.scale.x,by=s.scale.y;gsap.timeline().to(s.scale,{x:bx*1.12,y:by*1.12,duration:.12,ease:"power2.out"}).to(s.scale,{x:bx,y:by,duration:.14,ease:"back.out(2)"});}
+    }
+    const amount=Math.floor(valid.reduce((s,w)=>s+Math.max(0,Number(w?.amount)||0),0));
+    let amountWrap=null;
+    if(amount>0)amountWrap=this.#createWinAmount(amount,overlay);
+    overlay.alpha=0;await tween(overlay,{alpha:1,duration:.08,ease:"power1.out"});
+    if(amountWrap){amountWrap.scale.set(.78);gsap.to(amountWrap.scale,{x:1,y:1,duration:.22,ease:"back.out(2.5)"});}
+    await wait(this.config.reels>=10?430:520);
+    await tween(overlay,{alpha:0,duration:.13,ease:"power1.in"});
+    try{overlay.destroy({children:true});}catch{}
+    for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(s)gsap.to(s,{alpha:1,duration:.08,overwrite:true});}
+    await wait(70);
+  }
   visibleCenter(r,c){return {x:this.originX+this.#cellX(c),y:this.originY+this.#cellY(r),reel:this.reels[c]};}
   cellRect(r,c,w=1,h=1){return {x:this.originX+c*(this.cellW+this.gap),y:this.originY+r*(this.cellH+this.gap),width:this.cellW*w+this.gap*(w-1),height:this.cellH*h+this.gap*(h-1)};}
   createSymbol(id){const s=new this.PIXI.Sprite(this.#textureFor(id));s.anchor.set(.5);s.__id=id;return s;}
@@ -19,9 +47,35 @@ export class ReelEngine{
   #render(reel){const base=Math.floor(reel.position),frac=reel.position-base,spinning=[ReelState.ACCELERATING,ReelState.SPINNING,ReelState.ANTICIPATING,ReelState.DECELERATING].includes(reel.state),dense=this.config.reels>=10;for(let i=0;i<reel.sprites.length;i++){const s=reel.sprites[i],id=reel.strip[mod(base+i-1,reel.strip.length)],tex=this.#textureFor(id);if(s.__id!==id||s.texture!==tex){s.texture=tex;s.__id=id;}s.x=this.cellW/2;s.y=(i-1-frac)*(this.cellH+this.gap)+this.cellH/2;this.#fitSprite(s,spinning?(dense?.82:.78):(dense?.90:.82),spinning?1.05:1);s.alpha=spinning?.88:1;if(!spinning&&(id===this.config.wildSymbol||id===this.config.scatterSymbol)){const pulse=1+Math.sin(this.elapsed*(id===this.config.scatterSymbol?5.2:3.1)+i)*.025;s.scale.x*=pulse;s.scale.y*=pulse;}}}
   async #stopReel(reel,grid,c,duration){reel.state=ReelState.DECELERATING;reel.stateTime=0;const current=reel.position,target=Math.ceil(current)+Math.max(8,Math.floor(reel.maxVelocity*duration*.72));for(let r=0;r<this.config.rows;r++)reel.strip[mod(target+r,reel.strip.length)]=grid[r][c];await new Promise(resolve=>gsap.to(reel,{position:target,duration,ease:"power3.out",onComplete:resolve}));reel.state=ReelState.STOPPING;this.#setBlur(reel,false);await new Promise(resolve=>gsap.timeline().to(reel.container,{y:-this.cellH*.05,duration:.06,ease:"power1.out"}).to(reel.container,{y:this.cellH*.022,duration:.075,ease:"power1.inOut"}).to(reel.container,{y:0,duration:.1,ease:"back.out(2)",onComplete:resolve}));reel.position=target;reel.velocity=0;reel.state=ReelState.STOPPED;this.#render(reel);}
   async #animateWinningPositions(positions){const winners=new Set(positions.map(p=>`${p.r}:${p.c}`));for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(!s)continue;const hit=winners.has(`${r}:${reel.index}`);gsap.to(s,{alpha:hit?1:.3,duration:.09,overwrite:true});if(hit){const bx=s.scale.x,by=s.scale.y;gsap.timeline().to(s.scale,{x:bx*1.1,y:by*1.1,duration:.12,ease:"power2.out"}).to(s.scale,{x:bx,y:by,duration:.12,ease:"back.out(2)"});}}await wait(285);for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(s)gsap.to(s,{alpha:1,duration:.08,overwrite:true});}}
+  #drawWinRoute(g,win){
+    if(win?.fullOlympus){
+      g.roundRect(this.originX-3,this.originY-3,this.boardW+6,this.boardH+6,18).stroke({color:0xffe37b,width:5,alpha:.95});
+      return;
+    }
+    const route=this.#routeForWin(win);if(route.length<2)return;
+    g.moveTo(route[0].x,route[0].y);
+    for(let i=1;i<route.length;i++)g.lineTo(route[i].x,route[i].y);
+    g.stroke({color:0x0a101a,width:Math.max(5,Math.min(10,this.cellW*.12)),alpha:.75});
+    g.moveTo(route[0].x,route[0].y);
+    for(let i=1;i<route.length;i++)g.lineTo(route[i].x,route[i].y);
+    g.stroke({color:0xffdf72,width:Math.max(2,Math.min(4,this.cellW*.055)),alpha:.98});
+  }
+  #routeForWin(win){
+    const raw=uniquePositions(win?.positions||[]);
+    if(raw.length<2)return raw.map(p=>this.visibleCenter(p.r,p.c));
+    if(win?.direction||win?.start||win?.end)return raw.map(p=>this.visibleCenter(p.r,p.c));
+    const cols=new Map();for(const p of raw){if(!cols.has(p.c))cols.set(p.c,[]);cols.get(p.c).push(p.r);}
+    if(cols.size>=2)return [...cols.entries()].sort((a,b)=>a[0]-b[0]).map(([c,rows])=>this.visibleCenter(rows.reduce((a,b)=>a+b,0)/rows.length,c));
+    return raw.sort((a,b)=>a.r-b.r).map(p=>this.visibleCenter(p.r,p.c));
+  }
+  #createWinAmount(amount,parent){
+    const fontSize=Math.max(23,Math.min(40,this.width*.055)),text=new this.PIXI.Text({text:`+ ${formatWin(amount)}`,style:{fontFamily:"Arial",fontSize,fontWeight:"900",fill:0xffffff,stroke:{color:0x05070b,width:6},letterSpacing:1}});
+    text.anchor.set(.5);const padX=22,padY=10,bg=new this.PIXI.Graphics().roundRect(-(text.width/2+padX),-(text.height/2+padY),text.width+padX*2,text.height+padY*2,18).fill({color:0x05070b,alpha:.88}).stroke({color:0xffd96b,width:2,alpha:.85});
+    const wrap=new this.PIXI.Container();wrap.addChild(bg,text);wrap.x=this.width/2;wrap.y=Math.min(this.height-26,this.originY+this.boardH+34);parent.addChild(wrap);return wrap;
+  }
   #spriteAt(r,c){const reel=this.reels[c];if(!reel||r<0||r>=this.config.rows)return null;return reel.sprites[r+1]||null;}
   #fitSprite(sprite,fill=.82,verticalStretch=1){const tw=Math.max(1,sprite.texture?.orig?.width||sprite.texture?.width||104),th=Math.max(1,sprite.texture?.orig?.height||sprite.texture?.height||104),scale=Math.min(this.cellW*fill/tw,this.cellH*fill/th);sprite.scale.set(scale,scale*verticalStretch);}
   #cellX(c){return c*(this.cellW+this.gap)+this.cellW/2;}#cellY(r){return r*(this.cellH+this.gap)+this.cellH/2;}
   #setBlur(reel,on){if(!reel.blur)return;try{reel.blur.strength=on?4:0;if("blurX" in reel.blur)reel.blur.blurX=0;if("blurY" in reel.blur)reel.blur.blurY=on?6:0;}catch{}}
 }
-function makeStrip(config){const source=config.clientReelStrip?.length?config.clientReelStrip:config.symbols,out=[];for(let i=0;i<180;i++)out.push(source[i%source.length]);shuffle(out);return out;}function secureOffset(n){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%Math.max(1,n);}catch{return Math.floor(Math.random()*n);}}function mod(n,m){return ((n%m)+m)%m;}function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}function uniquePositions(a){const m=new Map();for(const p of a||[])if(Number.isInteger(p?.r)&&Number.isInteger(p?.c))m.set(`${p.r}:${p.c}`,{r:p.r,c:p.c});return [...m.values()];}function validGrid(grid,rows,cols){return Array.isArray(grid)&&grid.length===rows&&grid.every(row=>Array.isArray(row)&&row.length===cols);}function wait(ms){return new Promise(r=>setTimeout(r,ms));}export {ReelState};
+function makeStrip(config){const source=config.clientReelStrip?.length?config.clientReelStrip:config.symbols,out=[];for(let i=0;i<180;i++)out.push(source[i%source.length]);shuffle(out);return out;}function secureOffset(n){try{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%Math.max(1,n);}catch{return Math.floor(Math.random()*n);}}function mod(n,m){return ((n%m)+m)%m;}function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}function uniquePositions(a){const m=new Map();for(const p of a||[])if(Number.isInteger(p?.r)&&Number.isInteger(p?.c))m.set(`${p.r}:${p.c}`,{r:p.r,c:p.c});return [...m.values()];}function validGrid(grid,rows,cols){return Array.isArray(grid)&&grid.length===rows&&grid.every(row=>Array.isArray(row)&&row.length===cols);}function wait(ms){return new Promise(r=>setTimeout(r,ms));}function tween(target,vars){return new Promise(r=>gsap.to(target,{...vars,onComplete:r}));}function formatWin(n){return Math.max(0,Math.floor(Number(n)||0)).toLocaleString("ru-RU");}export {ReelState};
