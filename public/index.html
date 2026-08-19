@@ -42,7 +42,7 @@
     <section id="slotView" class="view game-view">
       <header class="game-topbar">
         <button id="backBtn" class="icon-button" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
-        <div><small id="gameMechanic">TUMBLE</small><h2 id="gameTitle">AUREUS CASCADE</h2></div>
+        <div class="game-title-stack"><small id="gameMechanic">TUMBLE</small><h2 id="gameTitle">AUREUS CASCADE</h2><span class="game-balance-inline">BAL <b id="gameBalance">0</b></span></div>
         <button id="infoBtn" class="icon-button" aria-label="Информация"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 7h.01"/></svg></button>
       </header>
       <div class="game-stage-shell">
@@ -72,5 +72,6 @@
   <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div id="modalBody"></div></div></div>
   <div id="bootScreen" class="boot-screen"><div class="boot-logo"><span>FIT</span><b>CASINO</b></div><small id="bootText">INITIALIZING ENGINE</small><div class="boot-track"><i id="bootBar"></i></div><strong id="bootPercent">0%</strong></div>
   <script type="module" src="/casino-app.js"></script>
+  <script src="/game-ui-fixes.js" defer></script>
 </body>
 </html>
