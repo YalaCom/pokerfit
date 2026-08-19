@@ -1,0 +1,15 @@
+{
+  "frames":{
+    "apple":{"frame":{"x":0,"y":0,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "orange":{"frame":{"x":256,"y":0,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "lemon":{"frame":{"x":512,"y":0,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "grapes":{"frame":{"x":768,"y":0,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "watermelon":{"frame":{"x":1024,"y":0,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "cherry":{"frame":{"x":0,"y":256,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "strawberry":{"frame":{"x":256,"y":256,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "honey":{"frame":{"x":512,"y":256,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "wild":{"frame":{"x":768,"y":256,"w":256,"h":256},"sourceSize":{"w":256,"h":256}},
+    "bee_scatter":{"frame":{"x":1024,"y":256,"w":256,"h":256},"sourceSize":{"w":256,"h":256}}
+  },
+  "meta":{"image":"symbols.svg","size":{"w":1280,"h":512},"scale":"1"}
+}
