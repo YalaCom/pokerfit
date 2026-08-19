@@ -25,7 +25,11 @@
 
 .control-deck{padding:10px 14px max(10px,var(--tg-bottom),env(safe-area-inset-bottom));background:linear-gradient(180deg,#0b0f16,#05070b);box-shadow:0 -12px 34px rgba(0,0,0,.26)}
 .bet-control{margin-bottom:8px}
-.action-row{padding-bottom:2px}
+.action-row{padding-bottom:2px;grid-template-areas:"feature spin auto"}
+#bonusBuyBtn{grid-area:feature}
+#spinBtn{grid-area:spin}
+#autoBtn{grid-area:auto}
+.slot-card[data-slot="honey_fruits"] .slot-card-copy p{display:none}
 .spin-button{transition:transform .08s ease,filter .16s ease,box-shadow .18s ease}
 .spin-button:not(:disabled):active{transform:scale(.935);box-shadow:0 0 0 5px #111620,0 0 38px rgba(230,180,70,.32)}
 .feature-button:not(:disabled):active,.bet-control>button:not(:disabled):active,.icon-button:active{transform:scale(.94)}
