@@ -1,4 +1,3 @@
-FIT Casino Olympus Storm five-slot release
-2026-08-19
-RELEASE: add original OLYMPUS STORM 6x5 Pay Anywhere slot with 8+ anywhere wins / tumble cascades / storm multiplier orbs x2-x500 / summed base multipliers / cumulative free-spin multiplier / 4+ Scatter awards 15 free spins / 3+ Scatter retriggers +5 / 100x feature buy / 5000x max win / original temple, storm, symbol and character SVG art / lightning, multiplier, gate intro, retrigger and bonus HUD animations / server-authoritative D1 balance and history preserved / existing four slots unchanged
-FINAL: bonus audio isolation verified after f7d2e2d0
+FIT Casino Olympus Storm sticky-reel release
+2026-08-19 22:09 +03:00
+RELEASE: fix OLYMPUS STORM only / remove independent random multiplier-orb behavior / Olympus multiplier now arrives as a full-height reel Wild with its own x2-x500 / Olympus participates with any regular symbol and fires lightning when it completes a win / base-game Olympus disappears after the round and immediately fades when there is no win / Free Spins Olympus reels stay sticky on the same columns for all following spins / new Olympus reels can accumulate up to all six columns / multiple active Olympus x values sum when they are used / 4+ Scatter 15 Free Spins, 3+ Scatter +5 retrigger, 100x feature buy and 5000x max win preserved / existing four slots unchanged
