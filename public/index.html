@@ -3,55 +3,73 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#07090f">
+  <meta name="theme-color" content="#050609">
   <title>FIT Casino</title>
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/howler@2/dist/howler.min.js"></script>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/casino.css">
 </head>
 <body>
-  <div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div>
   <div id="toast" class="toast"></div>
-  <main id="app" class="app-shell hidden">
+  <main id="app" class="casino-shell hidden">
     <header class="topbar">
-      <button id="homeBtn" class="brand"><span class="brand-diamond">◆</span><span><b>FIT CASINO</b><small>VIRTUAL CLUB</small></span></button>
-      <div class="balance-box"><small>BALANCE</small><strong id="balance">0</strong></div>
-      <button id="adminBtn" class="admin-chip hidden">ADMIN</button>
+      <button id="profileButton" class="profile-button"><span id="avatarInitial">F</span><span><small id="vipLabel">VIP 1</small><b id="playerName">Игрок</b></span></button>
+      <div class="balance-panel"><small>BALANCE</small><strong id="balance">0</strong><i id="balancePulse"></i></div>
+      <button id="adminBtn" class="admin-button hidden">ADMIN</button>
     </header>
 
     <section id="lobbyView" class="view active">
-      <article class="hero">
-        <div class="hero-copy"><small>PIXEL-PERFECT • 60 FPS</small><h1>CASINO<br><span>GAME FLOOR</span></h1><p>PixiJS reels, GSAP timelines, Howler SFX, haptics, anticipation и полноценная win presentation.</p></div>
-        <div class="hero-jackpot"><small>WELCOME BALANCE</small><b>10 000 000</b><span>виртуальных фишек</span></div>
+      <article class="jackpot-banner">
+        <div><small>PROGRESSIVE</small><h1>GRAND JACKPOT</h1><strong id="jackpotValue">0</strong><p>Банк растёт вместе с игровыми раундами.</p></div>
+        <div class="jackpot-rings" aria-hidden="true"><i></i><i></i><i></i></div>
       </article>
 
-      <div class="section-head"><div><small>FEATURED</small><h2>Слоты</h2></div><div class="filter-row"><button class="filter active" data-filter="all">Все</button><button class="filter" data-filter="tumble">Tumble</button><button class="filter" data-filter="wild">Wild</button></div></div>
+      <div class="status-grid">
+        <button id="dailyCard" class="status-card"><small>DAILY BONUS</small><b id="dailyAmount">250 000</b><span id="dailyStatus">ЗАБРАТЬ</span></button>
+        <article class="status-card vip-card"><small id="vipTitle">VIP LEVEL 1</small><b id="vipProgressText">0%</b><div class="vip-track"><i id="vipProgress"></i></div></article>
+      </div>
+
+      <div class="section-title"><div><small>FEATURED GAME</small><h2>Флагманский слот</h2></div><span class="live-badge">PIXEL ENGINE</span></div>
       <div id="slotGrid" class="slot-grid"></div>
 
-      <div class="section-head"><div><small>TABLE & INSTANT</small><h2>Обычные игры</h2></div></div>
+      <div class="section-title" id="classicSection"><div><small>TABLE & INSTANT</small><h2>Обычные игры</h2></div></div>
       <div id="classicGrid" class="classic-grid"></div>
     </section>
 
-    <section id="slotView" class="view">
-      <div class="game-head"><button id="backBtn" class="icon-btn">‹</button><div><small id="gameMechanic">SLOT</small><h2 id="gameTitle">OLYMPUS THUNDER</h2></div><button id="infoBtn" class="icon-btn">i</button></div>
-      <div class="slot-stage-wrap"><div id="pixiStage" class="pixi-stage"></div><div id="winOverlay" class="win-overlay hidden"><small id="winTier">BIG WIN</small><strong id="winCounter">0</strong></div><div id="anticipation" class="anticipation hidden"><b>BONUS?</b><span>последний барабан...</span></div></div>
-      <div class="game-result" id="gameResult">Сделай ставку и запускай.</div>
+    <section id="slotView" class="view game-view">
+      <header class="game-topbar">
+        <button id="backBtn" class="icon-button" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
+        <div><small id="gameMechanic">TUMBLE</small><h2 id="gameTitle">AUREUS CASCADE</h2></div>
+        <button id="infoBtn" class="icon-button" aria-label="Информация"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 7h.01"/></svg></button>
+      </header>
+      <div class="game-stage-shell">
+        <div id="pixiStage" class="pixi-stage"></div>
+        <div id="gameLoader" class="game-loader hidden"><small>LOADING GAME</small><strong id="gameLoadPercent">0%</strong><div><i id="gameLoadBar"></i></div></div>
+        <div class="game-hud"><span id="engineState">IDLE</span><b id="gameResult">READY</b></div>
+      </div>
       <div class="control-deck">
-        <div class="bet-row"><button data-bet-down>−</button><div><small>СТАВКА</small><input id="betInput" type="number" min="1000" max="5000000" step="1000" value="10000"></div><button data-bet-up>+</button></div>
-        <div class="control-row"><button id="bonusBuyBtn" class="secondary-btn">BONUS BUY</button><button id="spinBtn" class="spin-btn"><span>SPIN</span></button><button id="autoBtn" class="secondary-btn">AUTO</button></div>
+        <div class="bet-control"><button data-bet-down aria-label="Уменьшить ставку">−</button><div><small>BET</small><input id="betInput" type="number" inputmode="numeric" min="1000" max="5000000" value="10000"></div><button data-bet-up aria-label="Увеличить ставку">+</button></div>
+        <div class="action-row"><button id="bonusBuyBtn" class="feature-button"><small>FEATURE</small><b>BUY</b></button><button id="spinBtn" class="spin-button"><span>SPIN</span><i></i></button><button id="autoBtn" class="feature-button"><small>AUTO</small><b id="autoCount">PLAY</b></button></div>
       </div>
     </section>
 
     <section id="classicView" class="view">
-      <div class="game-head"><button id="classicBackBtn" class="icon-btn">‹</button><div><small>TABLE / INSTANT</small><h2 id="classicTitle">ROULETTE</h2></div><span></span></div>
+      <header class="game-topbar"><button id="classicBackBtn" class="icon-button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button><div><small>SERVER GAME</small><h2 id="classicTitle">GAME</h2></div><span></span></header>
       <div id="classicBody" class="classic-body"></div>
     </section>
+
+    <nav class="bottom-nav" id="bottomNav">
+      <button data-nav="home" class="active"><svg viewBox="0 0 24 24"><path d="M4 11 12 5l8 6v8H4z"/><path d="M9 19v-5h6v5"/></svg><span>Главная</span></button>
+      <button data-nav="games"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h4M10 10v4M16 11h.01M18 13h.01"/></svg><span>Игры</span></button>
+      <button data-nav="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 20c1-4 3.5-6 7-6s6 2 7 6"/></svg><span>Профиль</span></button>
+      <button data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Настройки</span></button>
+    </nav>
   </main>
 
-  <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
-  <div id="splash" class="splash"><div class="splash-mark">◆</div><b>FIT CASINO</b><span id="splashText">LOADING GAME ENGINE…</span></div>
+  <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div id="modalBody"></div></div></div>
+  <div id="bootScreen" class="boot-screen"><div class="boot-logo"><span>FIT</span><b>CASINO</b></div><small id="bootText">INITIALIZING ENGINE</small><div class="boot-track"><i id="bootBar"></i></div><strong id="bootPercent">0%</strong></div>
   <script type="module" src="/casino-app.js"></script>
 </body>
 </html>
