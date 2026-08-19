@@ -1,5 +1,5 @@
 {
-  "version":2,
+  "version":3,
   "games":{
     "aureus":{
       "config":"/assets/games/aureus/config.json",
@@ -15,6 +15,12 @@
       "bonusBackground":"/assets/games/honey-fruits/bonus-background.svg",
       "cover":"/assets/game-covers/honey-fruits.svg",
       "extras":{"giantBee":"/assets/games/honey-fruits/giant-bee.svg"}
+    },
+    "lucky_coin_collector":{
+      "config":"/assets/games/lucky-coin-collector/config.json",
+      "background":"/assets/games/lucky-coin-collector/background.svg",
+      "bonusBackground":"/assets/games/lucky-coin-collector/bonus-background.svg",
+      "cover":"/assets/game-covers/lucky-coin-collector.svg"
     }
   },
   "covers":{
