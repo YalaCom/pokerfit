@@ -4,7 +4,7 @@ export class ReelEngine{
   constructor({app,layer,textures,config,quality="AUTO"}){
     this.app=app;this.PIXI=window.PIXI;this.layer=layer;this.textures=textures;this.config=config;this.quality=quality;
     this.reels=[];this.width=0;this.height=0;this.cellW=0;this.cellH=0;this.gap=0;this.boardW=0;this.boardH=0;this.originX=0;this.originY=0;
-    this.boardRoot=null;this.boardMask=null;this.dropLayer=null;this.elapsed=0;this._ticker=t=>this.#update(t.deltaMS/1000);this.app.ticker.add(this._ticker);
+    this.boardRoot=null;this.boardMask=null;this.dropLayer=null;this.elapsed=0;this._ticker=t=>this.#update(Math.min(.05,t.deltaMS/1000));this.app.ticker.add(this._ticker);
   }
   layout(width,height){this.width=Math.max(1,width);this.height=Math.max(1,height);this.#build();}
   setQuality(q){this.quality=q||"AUTO";}
@@ -37,7 +37,13 @@ export class ReelEngine{
     this.cellW=(this.width-horizontalPad*2-this.gap*(cols-1))/cols;const maxBoardH=Math.min(this.height*(dense?.70:.63),this.width*(dense?1.12:1.02));this.cellH=Math.min(this.cellW*(dense?.98:.94),(maxBoardH-this.gap*(rows-1))/rows);this.boardW=this.cellW*cols+this.gap*(cols-1);this.boardH=this.cellH*rows+this.gap*(rows-1);this.originX=(this.width-this.boardW)/2;this.originY=Math.max(dense?42:54,Math.min(this.height-this.boardH-(dense?58:72),(this.height-this.boardH)*(dense?.43:.48)));
     const shadow=new this.PIXI.Graphics();shadow.roundRect(this.originX-12,this.originY-15,this.boardW+24,this.boardH+30,dense?18:24).fill({color:0x010203,alpha:.78});this.layer.addChild(shadow);const frame=new this.PIXI.Graphics();frame.roundRect(this.originX-9,this.originY-12,this.boardW+18,this.boardH+24,dense?16:21).fill({color:0x030609,alpha:.94}).stroke({color:0xd2a849,width:2,alpha:.82});this.layer.addChild(frame);
     this.boardRoot=new this.PIXI.Container();this.boardRoot.position.set(this.originX,this.originY);this.boardRoot.sortableChildren=true;this.layer.addChild(this.boardRoot);this.boardMask=new this.PIXI.Graphics();this.boardMask.rect(this.originX,this.originY,this.boardW,this.boardH).fill({color:0xffffff});this.layer.addChild(this.boardMask);this.boardRoot.mask=this.boardMask;
-    for(let c=0;c<cols;c++){const reelContainer=new this.PIXI.Container();reelContainer.x=c*(this.cellW+this.gap);reelContainer.y=0;reelContainer.zIndex=10;const strip=makeStrip(this.config),sprites=[];for(let i=0;i<rows+3;i++){const id=strip[i%strip.length],tex=this.textures[id]||this.PIXI.Texture.WHITE,s=new this.PIXI.Sprite(tex);s.anchor.set(.5);s.x=this.cellW/2;reelContainer.addChild(s);sprites.push(s);}const reel={index:c,container:reelContainer,strip,sprites,position:secureOffset(strip.length),velocity:0,maxVelocity:(dense?23:18.5)+c*(dense?.28:.65),state:ReelState.IDLE,stateTime:0,blur:null};try{const blur=new this.PIXI.BlurFilter({strength:0,quality:1});reelContainer.filters=[blur];reel.blur=blur;}catch{}this.reels.push(reel);this.boardRoot.addChild(reelContainer);this.#render(reel);}
+    for(let c=0;c<cols;c++){
+      const reelContainer=new this.PIXI.Container();reelContainer.x=c*(this.cellW+this.gap);reelContainer.y=0;reelContainer.zIndex=10;const strip=makeStrip(this.config),sprites=[];
+      for(let i=0;i<rows+3;i++){const id=strip[i%strip.length],tex=this.textures[id]||this.PIXI.Texture.WHITE,s=new this.PIXI.Sprite(tex);s.anchor.set(.5);s.x=this.cellW/2;reelContainer.addChild(s);sprites.push(s);}
+      const reel={index:c,container:reelContainer,strip,sprites,position:secureOffset(strip.length),velocity:0,maxVelocity:(dense?23:18.5)+c*(dense?.28:.65),state:ReelState.IDLE,stateTime:0,blur:null};
+      if(!dense||this.quality==="HIGH"){try{const blur=new this.PIXI.BlurFilter({strength:0,quality:1});reelContainer.filters=[blur];reel.blur=blur;}catch{}}
+      this.reels.push(reel);this.boardRoot.addChild(reelContainer);this.#render(reel);
+    }
     this.dropLayer=new this.PIXI.Container();this.dropLayer.zIndex=30;this.boardRoot.addChild(this.dropLayer);const topEdge=new this.PIXI.Graphics();topEdge.moveTo(this.originX,this.originY).lineTo(this.originX+this.boardW,this.originY).stroke({color:0xffe18a,width:1,alpha:.38});this.layer.addChild(topEdge);
   }
   #update(dt){this.elapsed+=dt;for(const reel of this.reels){reel.stateTime+=dt;if(reel.state===ReelState.ACCELERATING){const p=Math.min(1,reel.stateTime/.15);reel.velocity=reel.maxVelocity*(1-Math.pow(1-p,3));reel.position+=reel.velocity*dt;if(p>=1){reel.state=ReelState.SPINNING;reel.stateTime=0;}}else if(reel.state===ReelState.SPINNING||reel.state===ReelState.ANTICIPATING)reel.position+=reel.velocity*dt;this.#render(reel);}}
