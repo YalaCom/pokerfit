@@ -16,6 +16,20 @@
       "migrations_dir":"migrations"
     }
   ],
+  "migrations":[
+    {
+      "tag":"v1",
+      "new_sqlite_classes":["PokerTableDO"]
+    },
+    {
+      "tag":"v2",
+      "new_sqlite_classes":["RussianRouletteDO"]
+    },
+    {
+      "tag":"v3-casino-reboot",
+      "deleted_classes":["PokerTableDO","RussianRouletteDO"]
+    }
+  ],
   "vars":{
     "APP_NAME":"FIT CASINO",
     "APP_URL":"https://poker-club.btctgjr4t2.workers.dev"
