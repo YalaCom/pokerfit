@@ -1,55 +1,422 @@
 import {GameState} from "../core/GameStateMachine.js";
 import {GiantBeeController} from "./GiantBeeController.js";
 
-export class HoneyFruitsController{
-  constructor(engine){this.engine=engine;this.giant=null;}
-  destroy(){this.giant?.destroy();this.giant=null;}
-  async presentSpin(serverResponse,{onBalance=()=>{},onStatus=()=>{}}={}){
-    const e=this.engine,result=serverResponse?.result,bet=Number(serverResponse?.bet||0);if(!result?.initialGrid||!bet)throw new Error("BAD_HONEY_RESULT");
-    try{
-      e.fsm.transition(GameState.BASE_SPINNING);onStatus("SPIN");e.audio.play("honeySpin",{volume:.78});e.haptics.impact("medium");e.reels.startSpin();
-      await e.reels.stopOnGrid(result.initialGrid,{anticipationReel:Number.isInteger(result.anticipationReel)?result.anticipationReel:-1,stopDuration:.24,staggerMs:32,onAnticipation:async c=>{e.fsm.transition(GameState.SCATTER_ANTICIPATION);e.audio.startAnticipation();e.setCameraZoom(1.025,.32);this.reelGlow(c);onStatus("BEE ANTICIPATION");e.particles.emit("pollen",e.app.screen.width*.5,e.app.screen.height*.32,{count:18,tint:0xffda5e});},onScatterStop:()=>{e.audio.play("beeScatter",{volume:.9});e.haptics.scatter();e.particles.emit("beeTrail",e.app.screen.width*.5,e.app.screen.height*.36,{count:10,tint:0xffdf6a});},onReelStop:()=>{e.audio.play("honeyReel",{volume:.45});e.haptics.reelStop();}});
-      if(hasSymbol(result.initialGrid,"wild"))e.audio.play("honeyWild",{volume:.72});e.audio.stopAnticipation({restore:!result.bonusTriggered});e.setCameraZoom(1,.22);if(e.fsm.is(GameState.BASE_SPINNING,GameState.SCATTER_ANTICIPATION))e.fsm.transition(GameState.EVALUATING);
-      if(result.wins?.length){await e.reels.animateWins(result.wins);e.particles.emit("fruitJuice",e.app.screen.width*.5,e.app.screen.height*.44,{count:14,tint:0xff9c43});}
-      const baseWin=Number(result.basePayout||0);if(baseWin>0){const tier=e.win.tier(baseWin,bet);if(tier==="RETURN"||tier==="WIN")e.fsm.transition(GameState.SMALL_WIN);else{e.fsm.transition(GameState.BIG_WIN);if(tier==="MAX WIN")e.fsm.transition(GameState.MAX_WIN);}await e.win.present(baseWin,bet,{tier});}
-      if(result.bonusTriggered&&result.bonus){if(!e.fsm.is(GameState.BONUS_TRIGGER))e.fsm.transition(GameState.BONUS_TRIGGER);await this.playBonus(result,bet,onStatus);}else this.toBaseIdle();
-      onBalance(serverResponse.balance);onStatus(resultLabel(serverResponse.payout,bet));return serverResponse;
-    }catch(error){e.audio.stopAnticipation({restore:true});e.setCameraZoom(1,.12);try{e.reels?.setGrid(result?.finalGrid||result?.initialGrid);}catch{}e.forceIdle(true);throw error;}
+export class HoneyFruitsController {
+  constructor(engine) {
+    this.engine = engine;
+    this.giant = null;
   }
-  async playBonus(result,bet,onStatus){
-    const e=this.engine,bonus=result.bonus;e.fsm.transition(GameState.BONUS_INTRO);e.audio.play("honeyBonus",{volume:1});e.haptics.bonus();await this.intro(result.scatterPositions||[]);await e.audio.enterBonusMusic();e.setBonusScene(true);
-    this.giant?.destroy();this.giant=new GiantBeeController(e);this.giant.showHud(true);let totalWin=0;e.fsm.transition(GameState.BONUS_IDLE);
-    for(let i=0;i<(bonus.frames||[]).length;i++){
-      const frame=bonus.frames[i],before=frame.beeBefore,spinsBefore=Math.max(1,Number(frame.remainingAfter||0)+1-Number(frame.extraSpins||0));this.giant.setHud({spins:spinsBefore,progress:before.progress,required:before.required,level:before.level,totalWin,maxed:before.level>=4});e.fsm.transition(GameState.BEE_RELOCATING);onStatus(`BEE MOVE • SPINS ${spinsBefore}`);if(i===0)this.giant.mount(before,{instant:false});else await this.giant.relocate(before);
-      e.fsm.transition(GameState.BONUS_SPINNING);onStatus(`BONUS SPIN ${frame.spin}`);e.audio.play("honeyBonusSpin",{volume:.72});e.reels.startSpin();
-      await e.reels.stopOnGrid(frame.grid,{anticipationReel:Number.isInteger(frame.anticipationReel)?frame.anticipationReel:-1,stopDuration:.21,staggerMs:24,onAnticipation:async c=>{e.audio.startAnticipation();this.reelGlow(c);e.particles.emit("pollen",e.app.screen.width*.5,e.app.screen.height*.32,{count:12,tint:0xffd766});onStatus(`BONUS SPIN ${frame.spin} • BEE?`);},onScatterStop:()=>{e.audio.play("beeScatter",{volume:.82});e.haptics.scatter();},onReelStop:()=>e.audio.play("honeyReel",{volume:.38})});e.audio.stopAnticipation({restore:false});if(hasSymbol(frame.grid,"wild"))e.audio.play("honeyWild",{volume:.68});
-      if(frame.wins?.length)await e.reels.animateWins(frame.wins);totalWin+=Number(frame.payout||0);const tier=e.win.tier(Number(frame.payout||0),bet);if(frame.payout>0&&!["RETURN","WIN"].includes(tier)){e.fsm.transition(GameState.BONUS_WIN_PRESENTATION);await e.win.present(frame.payout,bet,{tier});e.fsm.transition(GameState.BEE_COLLECTING);}else e.fsm.transition(GameState.BEE_COLLECTING);
-      if(frame.scatterPositions?.length){onStatus(`BEE COLLECT +${frame.scatterPositions.length}`);await this.giant.collect(frame.scatterPositions);}for(const growth of frame.growths||[]){e.fsm.transition(GameState.BEE_GROWING);onStatus(`BEE GROWTH • LEVEL ${growth.toLevel+1}`);await this.giant.grow(growth);}if(frame.maxBeeExtraSpins>0)await this.giant.maxBeeExtra(frame.maxBeeExtraSpins);
-      const after=frame.beeAfter||before;this.giant.setHud({spins:frame.remainingAfter,progress:after.progress,required:after.required,level:after.level,totalWin,maxed:after.maxed});if(i<(bonus.frames.length-1))e.fsm.transition(GameState.BONUS_IDLE);await wait(180);
+
+  destroy() {
+    this.giant?.destroy();
+    this.giant = null;
+  }
+
+  async presentSpin(serverResponse, {onBalance = () => {}, onStatus = () => {}} = {}) {
+    const e = this.engine;
+    const result = serverResponse?.result;
+    const bet = Number(serverResponse?.bet || 0);
+    if (!result?.initialGrid || !bet) throw new Error("BAD_HONEY_RESULT");
+
+    try {
+      e.fsm.transition(GameState.BASE_SPINNING);
+      onStatus("SPIN");
+      e.audio.play("honeySpin", {volume: .78});
+      e.haptics.impact("medium");
+      e.reels.startSpin();
+
+      await e.reels.stopOnGrid(result.initialGrid, {
+        anticipationReel: Number.isInteger(result.anticipationReel) ? result.anticipationReel : -1,
+        stopDuration: .24,
+        staggerMs: 32,
+        onAnticipation: async column => {
+          e.fsm.transition(GameState.SCATTER_ANTICIPATION);
+          e.audio.startAnticipation();
+          e.setCameraZoom(1.025, .32);
+          this.reelGlow(column);
+          onStatus("BEE ANTICIPATION");
+          e.particles.emit("pollen", e.app.screen.width * .5, e.app.screen.height * .32, {count: 18, tint: 0xffda5e});
+        },
+        onScatterStop: () => {
+          e.audio.play("beeScatter", {volume: .9});
+          e.haptics.scatter();
+          e.particles.emit("beeTrail", e.app.screen.width * .5, e.app.screen.height * .36, {count: 10, tint: 0xffdf6a});
+        },
+        onReelStop: () => {
+          e.audio.play("honeyReel", {volume: .45});
+          e.haptics.reelStop();
+        }
+      });
+
+      if (hasSymbol(result.initialGrid, "wild")) e.audio.play("honeyWild", {volume: .72});
+      e.audio.stopAnticipation({restore: !result.bonusTriggered});
+      e.setCameraZoom(1, .22);
+      if (e.fsm.is(GameState.BASE_SPINNING, GameState.SCATTER_ANTICIPATION)) e.fsm.transition(GameState.EVALUATING);
+
+      if (result.wins?.length) {
+        await e.reels.animateWins(result.wins);
+        e.particles.emit("fruitJuice", e.app.screen.width * .5, e.app.screen.height * .44, {count: 14, tint: 0xff9c43});
+      }
+
+      const baseWin = Number(result.basePayout || 0);
+      if (baseWin > 0) {
+        const tier = e.win.tier(baseWin, bet);
+        if (tier === "RETURN" || tier === "WIN") e.fsm.transition(GameState.SMALL_WIN);
+        else {
+          e.fsm.transition(GameState.BIG_WIN);
+          if (tier === "MAX WIN") e.fsm.transition(GameState.MAX_WIN);
+        }
+        await e.win.present(baseWin, bet, {tier});
+      }
+
+      if (result.bonusTriggered && result.bonus) {
+        if (!e.fsm.is(GameState.BONUS_TRIGGER)) e.fsm.transition(GameState.BONUS_TRIGGER);
+        await this.playBonus(result, bet, onStatus);
+      } else {
+        this.toBaseIdle();
+      }
+
+      onBalance(serverResponse.balance);
+      onStatus(resultLabel(serverResponse.payout, bet));
+      return serverResponse;
+    } catch (error) {
+      e.audio.stopAnticipation({restore: true});
+      e.setCameraZoom(1, .12);
+      try { e.reels?.setGrid(result?.finalGrid || result?.initialGrid); } catch {}
+      e.forceIdle(true);
+      throw error;
     }
-    if(!e.fsm.is(GameState.BONUS_IDLE))e.fsm.current=GameState.BONUS_IDLE;e.fsm.transition(GameState.BONUS_OUTRO);onStatus("BONUS COMPLETE");await this.outro(bonus.payout,bet);this.giant.hide();await e.audio.exitBonusMusic();e.setBonusScene(false);e.fsm.transition(GameState.RETURN_BASE);e.fsm.transition(GameState.BASE_IDLE);
   }
-  async intro(scatterPositions){
-    const e=this.engine,W=e.app.screen.width,H=e.app.screen.height,flash=new e.PIXI.Graphics().rect(0,0,W,H).fill({color:0xffc229,alpha:0});e.layers.ui.addChild(flash);const title=new e.PIXI.Text({text:"HONEY BEE BONUS",style:{fontFamily:"Arial",fontSize:Math.max(26,Math.min(54,W*.082)),fontWeight:"900",fill:0xffec91,stroke:{color:0x6b3100,width:6},letterSpacing:2,align:"center"}});title.anchor.set(.5);title.x=W/2;title.y=H*.46;title.alpha=0;e.layers.ui.addChild(title);
-    for(const p of scatterPositions.slice(0,5)){const cell=e.reels.visibleCenter(p.r,p.c),s=beeIcon(e.PIXI,96);s.position.set(cell.x,cell.y);const sc=Math.min(e.reels.cellW*.8/104,e.reels.cellH*.8/104);s.scale.set(sc);e.layers.ui.addChild(s);gsap.to(s,{x:W/2,y:H*.44,duration:.55+Math.random()*.2,delay:Math.random()*.14,ease:"power2.inOut",onComplete:()=>s.destroy()});}
-    e.audio.play("beeBuzz",{volume:.9});e.particles.emit("goldenExplosion",W/2,H*.44,{count:38,tint:0xffcf41});await done(gsap.timeline().to(flash,{alpha:.72,duration:.13}).to(flash,{alpha:0,duration:.34}).fromTo(title.scale,{x:.35,y:.35},{x:1,y:1,duration:.44,ease:"back.out(2.8)"},0).to(title,{alpha:1,duration:.15},0).to(title,{alpha:0,duration:.28},1.0));flash.destroy();title.destroy();
+
+  async playBonus(result, bet, onStatus) {
+    const e = this.engine;
+    const bonus = result.bonus;
+
+    e.fsm.transition(GameState.BONUS_INTRO);
+    e.audio.play("honeyBonus", {volume: 1});
+    e.haptics.bonus();
+    await this.intro(result.scatterPositions || []);
+    await e.audio.enterBonusMusic();
+    e.setBonusScene(true);
+
+    this.giant?.destroy();
+    this.giant = new GiantBeeController(e);
+    this.giant.showHud(true);
+    let totalWin = 0;
+    e.fsm.transition(GameState.BONUS_IDLE);
+
+    for (let i = 0; i < (bonus.frames || []).length; i++) {
+      const frame = bonus.frames[i];
+      const before = frame.beeBefore;
+      const spinsBefore = Math.max(1, Number(frame.remainingAfter || 0) + 1 - Number(frame.extraSpins || 0));
+
+      this.giant.setHud({
+        spins: spinsBefore,
+        progress: before.progress,
+        required: before.required,
+        level: before.level,
+        totalWin,
+        maxed: before.level >= 4
+      });
+
+      e.fsm.transition(GameState.BEE_RELOCATING);
+      onStatus(`BEE MOVE • SPINS ${spinsBefore}`);
+      if (i === 0) this.giant.mount(before, {instant: false});
+      else await this.giant.relocate(before);
+
+      e.fsm.transition(GameState.BONUS_SPINNING);
+      onStatus(`BONUS SPIN ${frame.spin}`);
+      e.audio.play("honeyBonusSpin", {volume: .72});
+      e.reels.startSpin();
+
+      await e.reels.stopOnGrid(frame.grid, {
+        anticipationReel: Number.isInteger(frame.anticipationReel) ? frame.anticipationReel : -1,
+        stopDuration: .21,
+        staggerMs: 24,
+        onAnticipation: async column => {
+          e.audio.startAnticipation();
+          this.reelGlow(column);
+          e.particles.emit("pollen", e.app.screen.width * .5, e.app.screen.height * .32, {count: 12, tint: 0xffd766});
+          onStatus(`BONUS SPIN ${frame.spin} • BEE?`);
+        },
+        onScatterStop: () => {
+          e.audio.play("beeScatter", {volume: .82});
+          e.haptics.scatter();
+        },
+        onReelStop: () => e.audio.play("honeyReel", {volume: .38})
+      });
+
+      e.audio.stopAnticipation({restore: false});
+      if (hasSymbol(frame.grid, "wild")) e.audio.play("honeyWild", {volume: .68});
+      if (frame.wins?.length) await e.reels.animateWins(frame.wins);
+
+      totalWin += Number(frame.payout || 0);
+      const tier = e.win.tier(Number(frame.payout || 0), bet);
+      if (frame.payout > 0 && !["RETURN", "WIN"].includes(tier)) {
+        e.fsm.transition(GameState.BONUS_WIN_PRESENTATION);
+        await e.win.present(frame.payout, bet, {tier});
+        e.fsm.transition(GameState.BEE_COLLECTING);
+      } else {
+        e.fsm.transition(GameState.BEE_COLLECTING);
+      }
+
+      if (frame.scatterPositions?.length) {
+        onStatus(`BEE COLLECT +${frame.scatterPositions.length}`);
+        await this.giant.collect(frame.scatterPositions);
+      }
+
+      for (const growth of frame.growths || []) {
+        e.fsm.transition(GameState.BEE_GROWING);
+        onStatus(`BEE GROWTH • LEVEL ${growth.toLevel + 1}`);
+        await this.giant.grow(growth);
+      }
+
+      if (frame.maxBeeExtraSpins > 0) await this.giant.maxBeeExtra(frame.maxBeeExtraSpins);
+
+      const after = frame.beeAfter || before;
+      this.giant.setHud({
+        spins: frame.remainingAfter,
+        progress: after.progress,
+        required: after.required,
+        level: after.level,
+        totalWin,
+        maxed: after.maxed
+      });
+
+      if (i < bonus.frames.length - 1) e.fsm.transition(GameState.BONUS_IDLE);
+      await wait(180);
+    }
+
+    if (!e.fsm.is(GameState.BONUS_IDLE)) e.fsm.current = GameState.BONUS_IDLE;
+    e.fsm.transition(GameState.BONUS_OUTRO);
+    onStatus("BONUS COMPLETE");
+    await this.outro(bonus.payout, bet);
+    this.giant.hide();
+    await e.audio.exitBonusMusic();
+    e.setBonusScene(false);
+    e.fsm.transition(GameState.RETURN_BASE);
+    e.fsm.transition(GameState.BASE_IDLE);
   }
-  async outro(total,bet){
-    const e=this.engine,W=e.app.screen.width,H=e.app.screen.height;if(this.giant?.bee){gsap.killTweensOf(this.giant.bee);await done(gsap.timeline().to(this.giant.bee,{x:W/2,y:H*.42,duration:.48,ease:"power2.inOut"}).to(this.giant.bee.scale,{x:this.giant.bee.scale.x*1.12,y:this.giant.bee.scale.y*1.12,duration:.18,yoyo:true,repeat:1}));}
-    e.audio.play("bonusComplete",{volume:1});e.particles.emit("goldenExplosion",W/2,H*.45,{count:52,tint:0xffd14a});await this.totalBonusLabel(total);const tier=e.win.tier(total,bet);if(total>0)await e.win.present(total,bet,{tier});await this.continueButton();
+
+  async intro(scatterPositions) {
+    const e = this.engine;
+    const W = e.app.screen.width;
+    const H = e.app.screen.height;
+    const flash = new e.PIXI.Graphics().rect(0, 0, W, H).fill({color: 0xffc229, alpha: 0});
+    e.layers.ui.addChild(flash);
+
+    const title = new e.PIXI.Text({
+      text: "HONEY BEE BONUS",
+      style: {
+        fontFamily: "Arial",
+        fontSize: Math.max(26, Math.min(54, W * .082)),
+        fontWeight: "900",
+        fill: 0xffec91,
+        stroke: {color: 0x6b3100, width: 6},
+        letterSpacing: 2,
+        align: "center"
+      }
+    });
+    title.anchor.set(.5);
+    title.x = W / 2;
+    title.y = H * .46;
+    title.alpha = 0;
+    e.layers.ui.addChild(title);
+
+    for (const p of scatterPositions.slice(0, 5)) {
+      const cell = e.reels.visibleCenter(p.r, p.c);
+      const s = beeIcon(e.PIXI, 96);
+      s.position.set(cell.x, cell.y);
+      const sc = Math.min(e.reels.cellW * .8 / 104, e.reels.cellH * .8 / 104);
+      s.scale.set(sc);
+      e.layers.ui.addChild(s);
+      gsap.to(s, {
+        x: W / 2,
+        y: H * .44,
+        duration: .55 + Math.random() * .2,
+        delay: Math.random() * .14,
+        ease: "power2.inOut",
+        onComplete: () => s.destroy()
+      });
+    }
+
+    e.audio.play("beeBuzz", {volume: .9});
+    e.particles.emit("goldenExplosion", W / 2, H * .44, {count: 38, tint: 0xffcf41});
+    await done(
+      gsap.timeline()
+        .to(flash, {alpha: .72, duration: .13})
+        .to(flash, {alpha: 0, duration: .34})
+        .fromTo(title.scale, {x: .35, y: .35}, {x: 1, y: 1, duration: .44, ease: "back.out(2.8)"}, 0)
+        .to(title, {alpha: 1, duration: .15}, 0)
+        .to(title, {alpha: 0, duration: .28}, 1.0)
+    );
+    flash.destroy();
+    title.destroy();
   }
-  async totalBonusLabel(total){
-    const e=this.engine,W=e.app.screen.width,H=e.app.screen.height,c=new e.PIXI.Container();c.zIndex=1900;const title=new e.PIXI.Text({text:"TOTAL BONUS WIN",style:{fontFamily:"Arial",fontSize:Math.max(18,Math.min(32,W*.052)),fontWeight:"900",fill:0xffe38a,stroke:{color:0x5d2b00,width:4},letterSpacing:2}}),amount=new e.PIXI.Text({text:fmt(total),style:{fontFamily:"Arial",fontSize:Math.max(28,Math.min(48,W*.078)),fontWeight:"900",fill:0xffffff,stroke:{color:0x321600,width:5}});title.anchor.set(.5);amount.anchor.set(.5);title.y=-24;amount.y=22;c.addChild(title,amount);c.x=W/2;c.y=H*.48;c.alpha=0;e.layers.ui.addChild(c);await done(gsap.timeline().fromTo(c.scale,{x:.72,y:.72},{x:1,y:1,duration:.28,ease:"back.out(2.4)"}).to(c,{alpha:1,duration:.15},0).to(c,{alpha:0,duration:.22},.72));c.destroy({children:true});
+
+  async outro(total, bet) {
+    const e = this.engine;
+    const W = e.app.screen.width;
+    const H = e.app.screen.height;
+
+    if (this.giant?.bee) {
+      gsap.killTweensOf(this.giant.bee);
+      await done(
+        gsap.timeline()
+          .to(this.giant.bee, {x: W / 2, y: H * .42, duration: .48, ease: "power2.inOut"})
+          .to(this.giant.bee.scale, {x: this.giant.bee.scale.x * 1.12, y: this.giant.bee.scale.y * 1.12, duration: .18, yoyo: true, repeat: 1})
+      );
+    }
+
+    e.audio.play("bonusComplete", {volume: 1});
+    e.particles.emit("goldenExplosion", W / 2, H * .45, {count: 52, tint: 0xffd14a});
+    await this.totalBonusLabel(total);
+    const tier = e.win.tier(total, bet);
+    if (total > 0) await e.win.present(total, bet, {tier});
+    await this.continueButton();
   }
-  reelGlow(column){
-    const e=this.engine,r=e.reels;if(!r||column<0||column>=r.reels.length)return;const x=r.originX+column*(r.cellW+r.gap),y=r.originY,g=new e.PIXI.Graphics().roundRect(x-3,y-5,r.cellW+6,r.boardH+10,9).fill({color:0xffbd25,alpha:.07}).stroke({color:0xffdc68,width:3,alpha:.95});g.alpha=0;g.zIndex=70;e.layers.foreground.sortableChildren=true;e.layers.foreground.addChild(g);e.particles.emit("pollen",x+r.cellW/2,y+r.boardH/2,{count:10,tint:0xffdf78,speed:48,life:1.15});gsap.timeline({onComplete:()=>g.destroy()}).to(g,{alpha:1,duration:.12}).to(g,{alpha:.32,duration:.18,yoyo:true,repeat:3}).to(g,{alpha:0,duration:.18});
+
+  async totalBonusLabel(total) {
+    const e = this.engine;
+    const W = e.app.screen.width;
+    const H = e.app.screen.height;
+    const c = new e.PIXI.Container();
+    c.zIndex = 1900;
+
+    const title = new e.PIXI.Text({
+      text: "TOTAL BONUS WIN",
+      style: {
+        fontFamily: "Arial",
+        fontSize: Math.max(18, Math.min(32, W * .052)),
+        fontWeight: "900",
+        fill: 0xffe38a,
+        stroke: {color: 0x5d2b00, width: 4},
+        letterSpacing: 2
+      }
+    });
+
+    const amount = new e.PIXI.Text({
+      text: fmt(total),
+      style: {
+        fontFamily: "Arial",
+        fontSize: Math.max(28, Math.min(48, W * .078)),
+        fontWeight: "900",
+        fill: 0xffffff,
+        stroke: {color: 0x321600, width: 5}
+      }
+    });
+
+    title.anchor.set(.5);
+    amount.anchor.set(.5);
+    title.y = -24;
+    amount.y = 22;
+    c.addChild(title, amount);
+    c.x = W / 2;
+    c.y = H * .48;
+    c.alpha = 0;
+    e.layers.ui.addChild(c);
+
+    await done(
+      gsap.timeline()
+        .fromTo(c.scale, {x: .72, y: .72}, {x: 1, y: 1, duration: .28, ease: "back.out(2.4)"})
+        .to(c, {alpha: 1, duration: .15}, 0)
+        .to(c, {alpha: 0, duration: .22}, .72)
+    );
+    c.destroy({children: true});
   }
-  async continueButton(){
-    const e=this.engine,W=e.app.screen.width,H=e.app.screen.height,c=new e.PIXI.Container();c.eventMode="static";c.cursor="pointer";c.zIndex=2000;const bg=new e.PIXI.Graphics().roundRect(-110,-28,220,56,28).fill({color:0x5a2d04,alpha:.95}).stroke({color:0xffd85b,width:3,alpha:.9});const t=new e.PIXI.Text({text:"CONTINUE",style:{fontFamily:"Arial",fontSize:20,fontWeight:"900",fill:0xfff0a2,letterSpacing:2}});t.anchor.set(.5);c.addChild(bg,t);c.x=W/2;c.y=H*.66;c.alpha=0;e.layers.ui.addChild(c);gsap.to(c,{alpha:1,duration:.18});gsap.to(c.scale,{x:1.035,y:1.035,duration:.7,yoyo:true,repeat:-1,ease:"sine.inOut"});await new Promise(resolve=>c.once("pointertap",()=>{e.haptics.impact("light");resolve();}));gsap.killTweensOf(c);c.destroy({children:true});
+
+  reelGlow(column) {
+    const e = this.engine;
+    const r = e.reels;
+    if (!r || column < 0 || column >= r.reels.length) return;
+    const x = r.originX + column * (r.cellW + r.gap);
+    const y = r.originY;
+    const g = new e.PIXI.Graphics()
+      .roundRect(x - 3, y - 5, r.cellW + 6, r.boardH + 10, 9)
+      .fill({color: 0xffbd25, alpha: .07})
+      .stroke({color: 0xffdc68, width: 3, alpha: .95});
+    g.alpha = 0;
+    g.zIndex = 70;
+    e.layers.foreground.sortableChildren = true;
+    e.layers.foreground.addChild(g);
+    e.particles.emit("pollen", x + r.cellW / 2, y + r.boardH / 2, {count: 10, tint: 0xffdf78, speed: 48, life: 1.15});
+    gsap.timeline({onComplete: () => g.destroy()})
+      .to(g, {alpha: 1, duration: .12})
+      .to(g, {alpha: .32, duration: .18, yoyo: true, repeat: 3})
+      .to(g, {alpha: 0, duration: .18});
   }
-  toBaseIdle(){const e=this.engine;if([GameState.SMALL_WIN,GameState.BIG_WIN,GameState.MAX_WIN,GameState.EVALUATING].includes(e.fsm.current))e.fsm.transition(GameState.BASE_IDLE);else if(e.fsm.current!==GameState.BASE_IDLE)e.fsm.current=GameState.BASE_IDLE;}
+
+  async continueButton() {
+    const e = this.engine;
+    const W = e.app.screen.width;
+    const H = e.app.screen.height;
+    const c = new e.PIXI.Container();
+    c.eventMode = "static";
+    c.cursor = "pointer";
+    c.zIndex = 2000;
+
+    const bg = new e.PIXI.Graphics()
+      .roundRect(-110, -28, 220, 56, 28)
+      .fill({color: 0x5a2d04, alpha: .95})
+      .stroke({color: 0xffd85b, width: 3, alpha: .9});
+    const t = new e.PIXI.Text({
+      text: "CONTINUE",
+      style: {fontFamily: "Arial", fontSize: 20, fontWeight: "900", fill: 0xfff0a2, letterSpacing: 2}
+    });
+    t.anchor.set(.5);
+    c.addChild(bg, t);
+    c.x = W / 2;
+    c.y = H * .66;
+    c.alpha = 0;
+    e.layers.ui.addChild(c);
+    gsap.to(c, {alpha: 1, duration: .18});
+    gsap.to(c.scale, {x: 1.035, y: 1.035, duration: .7, yoyo: true, repeat: -1, ease: "sine.inOut"});
+    await new Promise(resolve => c.once("pointertap", () => {
+      e.haptics.impact("light");
+      resolve();
+    }));
+    gsap.killTweensOf(c);
+    c.destroy({children: true});
+  }
+
+  toBaseIdle() {
+    const e = this.engine;
+    if ([GameState.SMALL_WIN, GameState.BIG_WIN, GameState.MAX_WIN, GameState.EVALUATING].includes(e.fsm.current)) {
+      e.fsm.transition(GameState.BASE_IDLE);
+    } else if (e.fsm.current !== GameState.BASE_IDLE) {
+      e.fsm.current = GameState.BASE_IDLE;
+    }
+  }
 }
-function beeIcon(PIXI,fontSize=96){const s=new PIXI.Text({text:"🐝",style:{fontFamily:"Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",fontSize,align:"center"}});s.anchor.set(.5);return s;}
-function hasSymbol(grid,symbol){return Array.isArray(grid)&&grid.some(row=>Array.isArray(row)&&row.includes(symbol));}
-function resultLabel(payout,bet){payout=Math.max(0,Number(payout)||0);bet=Math.max(1,Number(bet)||1);if(!payout)return "NO WIN";return `${payout<bet?"RETURN":"WIN"} ${fmt(payout)} • x${(payout/bet).toFixed(2)}`;}
-function fmt(n){return Math.floor(Number(n)||0).toLocaleString("ru-RU");}function wait(ms){return new Promise(r=>setTimeout(r,ms));}function done(tl){return new Promise(r=>tl.eventCallback("onComplete",r));}
+
+function beeIcon(PIXI, fontSize = 96) {
+  const s = new PIXI.Text({
+    text: "🐝",
+    style: {fontFamily: "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif", fontSize, align: "center"}
+  });
+  s.anchor.set(.5);
+  return s;
+}
+
+function hasSymbol(grid, symbol) {
+  return Array.isArray(grid) && grid.some(row => Array.isArray(row) && row.includes(symbol));
+}
+
+function resultLabel(payout, bet) {
+  payout = Math.max(0, Number(payout) || 0);
+  bet = Math.max(1, Number(bet) || 1);
+  if (!payout) return "NO WIN";
+  return `${payout < bet ? "RETURN" : "WIN"} ${fmt(payout)} • x${(payout / bet).toFixed(2)}`;
+}
+
+function fmt(n) {
+  return Math.floor(Number(n) || 0).toLocaleString("ru-RU");
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function done(tl) {
+  return new Promise(resolve => tl.eventCallback("onComplete", resolve));
+}
