@@ -42,7 +42,13 @@ export class GameEngine extends EventTarget{
       await this.reels.stopOnGrid(result.initialGrid,{anticipationReel:Number.isInteger(result.anticipationReel)?result.anticipationReel:-1,onAnticipation:async()=>{this.fsm.transition(GameState.ANTICIPATION);this.audio.startAnticipation();this.#cameraZoom(1.025,.35);onStatus("ANTICIPATION");},onScatterStop:()=>{this.audio.play("scatter");this.haptics.scatter();this.particles.emit("magicTrail",this.app.screen.width*.5,this.app.screen.height*.35,{count:12,tint:0x6be7ff});},onReelStop:()=>{this.audio.play("reel");this.haptics.reelStop();}});
       this.audio.stopAnticipation({restore:!result.bonusTriggered});this.#cameraZoom(1,.25);if(this.fsm.is(GameState.SPINNING,GameState.ANTICIPATION))this.fsm.transition(GameState.REEL_STOP);this.fsm.transition(GameState.EVALUATING);
       let cascadeNo=0;for(const cascade of result.cascades||[]){cascadeNo++;onStatus(`TUMBLE ${cascadeNo} • x${cascade.multiplier}`);await this.reels.animateWins(cascade.wins||[]);await this.reels.animateCascade(cascade,this.particles);this.audio.play("burst");}
-      const baseWin=Number(result.basePayout||0);if(baseWin>0&&!result.bonusTriggered){const tier=this.win.tier(baseWin,bet);this.fsm.transition(tier==="RETURN"||tier==="WIN"?GameState.SMALL_WIN:tier==="MAX WIN"?GameState.MAX_WIN:GameState.BIG_WIN);await this.win.present(baseWin,bet,{tier});}
+      const baseWin=Number(result.basePayout||0);
+      if(baseWin>0&&!result.bonusTriggered){
+        const tier=this.win.tier(baseWin,bet);
+        if(tier==="RETURN"||tier==="WIN")this.fsm.transition(GameState.SMALL_WIN);
+        else{this.fsm.transition(GameState.BIG_WIN);if(tier==="MAX WIN")this.fsm.transition(GameState.MAX_WIN);}
+        await this.win.present(baseWin,bet,{tier});
+      }
       if(result.bonusTriggered&&result.bonus)await this.#playFreeSpins(result.bonus,bet,onStatus);
       this.#finishToIdle();onBalance(serverResponse.balance);onStatus(resultLabel(serverResponse.payout,bet,serverResponse.multiplier));return serverResponse;
     }catch(error){this.audio.stopAnticipation({restore:true});this.#cameraZoom(1,.12);this.#toError();try{if(result?.finalGrid)this.reels?.setGrid(result.finalGrid);}catch{}if(this.fsm.is(GameState.ERROR))this.fsm.transition(GameState.IDLE);throw error;}
@@ -67,7 +73,7 @@ export class GameEngine extends EventTarget{
   #buildScene(bonus=false){
     const layer=this.layers.background;layer.removeChildren();const tex=bonus?this.resources?.bonusBackground:this.resources?.background;
     if(tex){const s=new this.PIXI.Sprite(tex);const scale=Math.max(this.app.screen.width/Math.max(1,tex.width),this.app.screen.height/Math.max(1,tex.height));s.scale.set(scale);s.x=(this.app.screen.width-s.width)/2;s.y=(this.app.screen.height-s.height)/2;layer.addChild(s);}
-    const shade=new this.PIXI.Graphics().rect(0,0,this.app.screen.width,this.app.screen.height).fill({color:0x020407,alpha:bonus?.14:.26});layer.addChild(shade);
+    const shade=new this.PIXI.Graphics().rect(0,0,this.app.screen.width,this.app.screen.height).fill({color:0x020407,alpha:bonus ? .14 : .26});layer.addChild(shade);
   }
   #cameraZoom(scale,duration){const layer=this.layers.game;layer.pivot.set(this.app.screen.width/2,this.app.screen.height/2);layer.position.set(this.app.screen.width/2,this.app.screen.height/2);gsap.to(layer.scale,{x:scale,y:scale,duration,ease:"power2.out"});}
   #finishToIdle(){if(this.fsm.current===GameState.BONUS_OUTRO)this.fsm.transition(GameState.RETURN_TO_BASE_GAME);if(this.fsm.current===GameState.RETURN_TO_BASE_GAME)this.fsm.transition(GameState.IDLE);else if([GameState.SMALL_WIN,GameState.BIG_WIN,GameState.MAX_WIN,GameState.EVALUATING].includes(this.fsm.current))this.fsm.transition(GameState.IDLE);}
