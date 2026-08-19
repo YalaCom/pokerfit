@@ -1,8 +1,9 @@
 import {validateTelegramInitData} from "./auth.js";
 import {AUREUS_CONFIG,createAureusResult,createAureusBonusBuyResult} from "./games/aureus.js";
 import {HONEY_FRUITS_CONFIG,createHoneyFruitsResult} from "./games/honey-fruits.js";
+import {LUCKY_COIN_CONFIG,createLuckyCoinResult} from "./games/lucky-coin-collector.js";
 
-const BUILD="2026-08-19-casino-engine-v3-honey-fruits";
+const BUILD="2026-08-19-casino-engine-v4-lucky-coin";
 const START_BALANCE=10_000_000;
 const MIN_BET=1_000;
 const MAX_BET=5_000_000;
@@ -39,7 +40,8 @@ async function bootstrap(env,player){
   const profile=await profileFor(env,player),daily=await dailyStatus(env,player.telegram_id),jackpot=await jackpotValue(env);
   return {player:profile,slots:[
     {id:AUREUS_CONFIG.id,name:AUREUS_CONFIG.name,rows:AUREUS_CONFIG.rows,cols:AUREUS_CONFIG.reels,mechanic:AUREUS_CONFIG.mechanic,feature:AUREUS_CONFIG.feature,bonusBuy:true,maxWin:AUREUS_CONFIG.maxWin,cover:"/assets/game-covers/aureus.svg",badge:"FEATURED"},
-    {id:HONEY_FRUITS_CONFIG.id,name:HONEY_FRUITS_CONFIG.name,rows:HONEY_FRUITS_CONFIG.rows,cols:HONEY_FRUITS_CONFIG.reels,mechanic:HONEY_FRUITS_CONFIG.mechanic,feature:HONEY_FRUITS_CONFIG.feature,bonusBuy:false,maxWin:HONEY_FRUITS_CONFIG.maxWin,cover:"/assets/game-covers/honey-fruits.svg",badge:"NEW"}
+    {id:HONEY_FRUITS_CONFIG.id,name:HONEY_FRUITS_CONFIG.name,rows:HONEY_FRUITS_CONFIG.rows,cols:HONEY_FRUITS_CONFIG.reels,mechanic:HONEY_FRUITS_CONFIG.mechanic,feature:HONEY_FRUITS_CONFIG.feature,bonusBuy:false,maxWin:HONEY_FRUITS_CONFIG.maxWin,cover:"/assets/game-covers/honey-fruits.svg",badge:"NEW"},
+    {id:LUCKY_COIN_CONFIG.id,name:LUCKY_COIN_CONFIG.name,rows:LUCKY_COIN_CONFIG.rows,cols:LUCKY_COIN_CONFIG.reels,mechanic:LUCKY_COIN_CONFIG.mechanic,feature:LUCKY_COIN_CONFIG.feature,bonusBuy:false,maxWin:LUCKY_COIN_CONFIG.maxWin,cover:"/assets/game-covers/lucky-coin-collector.svg",badge:"NEW"}
   ],daily,jackpot};
 }
 
@@ -63,7 +65,7 @@ function publicUser(p){return {telegramId:String(p.telegram_id),username:p.usern
 
 async function playSlotRound(env,player,body){
   const gameId=String(body.gameId||""),bet=validateBet(body.bet),requestId=validateRequestId(body.requestId),cacheKey=`spin:${player.telegram_id}:${requestId}`;const cached=await cachedResponse(env,cacheKey);if(cached)return {...cached,duplicate:true};
-  let outcome,maxWin;if(gameId===AUREUS_CONFIG.id){outcome=createAureusResult(bet);maxWin=AUREUS_CONFIG.maxWin;}else if(gameId===HONEY_FRUITS_CONFIG.id){outcome=createHoneyFruitsResult(bet);maxWin=HONEY_FRUITS_CONFIG.maxWin;}else throw new Error("SLOT_NOT_READY");
+  let outcome,maxWin;if(gameId===AUREUS_CONFIG.id){outcome=createAureusResult(bet);maxWin=AUREUS_CONFIG.maxWin;}else if(gameId===HONEY_FRUITS_CONFIG.id){outcome=createHoneyFruitsResult(bet);maxWin=HONEY_FRUITS_CONFIG.maxWin;}else if(gameId===LUCKY_COIN_CONFIG.id){outcome=createLuckyCoinResult(bet);maxWin=LUCKY_COIN_CONFIG.maxWin;}else throw new Error("SLOT_NOT_READY");
   const roundId=crypto.randomUUID(),payout=Math.max(0,Math.floor(outcome.payout));const d=await changeBalance(env,player.telegram_id,-bet,"SLOT_BET",roundId,{gameId,bet,requestId});let balance=d.balance;if(payout>0)balance=(await changeBalance(env,player.telegram_id,payout,"SLOT_PAYOUT",roundId,{gameId,bet,payout,requestId})).balance;
   await recordRound(env,player.telegram_id,gameId,bet,payout,roundId,outcome);await addJackpot(env,Math.max(1,Math.floor(bet*.002)));
   const response={spinId:roundId,roundId,gameId,bet,payout,balance,multiplier:round2(payout/bet),maxWin:bet*maxWin,result:outcome};await cacheResponse(env,cacheKey,player.telegram_id,response);return response;
