@@ -4,6 +4,7 @@ import {GameState} from "./game/core/GameStateMachine.js";
 const tg=window.Telegram?.WebApp;
 const $=id=>document.getElementById(id);
 const BET_STEPS=[1000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000,5000000];
+const STATE_LABELS={BOOT:"START",LOADING:"LOADING",IDLE:"READY",BETTING:"BET",SPIN_START:"SPIN",SPINNING:"SPIN",ANTICIPATION:"BONUS?",REEL_STOP:"STOP",EVALUATING:"CHECK",SMALL_WIN:"PAYOUT",BIG_WIN:"BIG WIN",MAX_WIN:"MAX WIN",BONUS_TRIGGER:"BONUS",BONUS_INTRO:"BONUS",BONUS_PLAYING:"BONUS",FREE_SPINS:"FREE SPINS",BONUS_OUTRO:"BONUS END",RETURN_TO_BASE_GAME:"RETURN",ERROR:"RECOVERING"};
 const CLASSICS=[
   {id:"roulette",name:"ROULETTE",sub:"European 0–36",cover:"/assets/game-covers/roulette.svg",choices:["red","black","even","odd"]},
   {id:"blackjack",name:"BLACKJACK",sub:"Server dealer",cover:"/assets/game-covers/blackjack.svg"},
@@ -20,7 +21,8 @@ boot();
 async function boot(){
   setBoot(8,"TELEGRAM SESSION");
   if(!tg?.initData){$("bootText").textContent="OPEN INSIDE TELEGRAM";return;}
-  tg.ready();tg.expand();try{tg.setHeaderColor?.("#050609");tg.setBackgroundColor?.("#050609");}catch{}
+  tg.ready();tg.expand();syncTelegramInsets();
+  try{tg.setHeaderColor?.("#050609");tg.setBackgroundColor?.("#050609");}catch{}
   try{
     setBoot(22,"AUTHENTICATING");const data=await api("/api/bootstrap",{});setBoot(58,"LOADING CASINO FLOOR");
     state.player=data.player;state.slots=data.slots||[];state.daily=data.daily;state.jackpot=Number(data.jackpot||0);renderLobby();bindGlobal();refreshHeader();setBoot(100,"READY");
@@ -33,40 +35,37 @@ function bindGlobal(){
   $("modalClose").onclick=closeModal;$("modal").onclick=e=>{if(e.target===$("modal"))closeModal();};
   $("spinBtn").onclick=()=>spinOnce();$("bonusBuyBtn").onclick=openBonusBuy;$("autoBtn").onclick=openAuto;
   document.querySelector("[data-bet-down]").onclick=()=>changeBet(-1);document.querySelector("[data-bet-up]").onclick=()=>changeBet(1);$("betInput").onchange=()=>{state.bet=normalizeBet($("betInput").value);$("betInput").value=state.bet;};
-  $("dailyCard").onclick=claimDaily;
-  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>handleNav(b.dataset.nav,b));
+  $("dailyCard").onclick=claimDaily;document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>handleNav(b.dataset.nav,b));
+  try{tg?.onEvent?.("contentSafeAreaChanged",syncTelegramInsets);tg?.onEvent?.("safeAreaChanged",syncTelegramInsets);tg?.onEvent?.("viewportChanged",syncTelegramInsets);}catch{}
+  window.addEventListener("resize",syncTelegramInsets,{passive:true});
 }
 
 function renderLobby(){
   $("slotGrid").innerHTML=state.slots.map(s=>`<button class="slot-card" data-slot="${esc(s.id)}"><div class="slot-card-art"><img src="${esc(s.cover)}" alt="${esc(s.name)}"></div><div class="slot-card-copy"><small>${esc(s.badge||"FEATURED")} • MAX WIN x${Number(s.maxWin||1000)}</small><h3>${esc(s.name)}</h3><p>${esc(s.mechanic)}. Отдельный PixiJS reel engine, server-authoritative cascades и Free Spins mode.</p><div class="slot-tags"><span>6 × 5</span><span>TUMBLE</span><span>FREE SPINS</span></div><div class="slot-play">PLAY GAME →</div></div></button>`).join("");
   document.querySelectorAll("[data-slot]").forEach(card=>card.onclick=()=>openSlot(card.dataset.slot,card));
   $("classicGrid").innerHTML=CLASSICS.map(g=>`<button class="classic-card" data-classic="${g.id}"><img src="${g.cover}" alt="${g.name}"><div class="classic-card-copy"><b>${g.name}</b><small>${g.sub}</small></div></button>`).join("");
-  document.querySelectorAll("[data-classic]").forEach(card=>card.onclick=()=>openClassic(card.dataset.classic));
-  renderDaily();refreshHeader();
+  document.querySelectorAll("[data-classic]").forEach(card=>card.onclick=()=>openClassic(card.dataset.classic));renderDaily();refreshHeader();
 }
 
 async function openSlot(id,card){
-  const slot=state.slots.find(s=>s.id===id);if(!slot)return;if(state.autoRemaining)return;
-  state.current=slot;state.bet=normalizeBet($("betInput").value||state.bet);$("betInput").value=state.bet;$("gameTitle").textContent=slot.name;$("gameMechanic").textContent=slot.mechanic;$("gameResult").textContent="LOADING";
-  if(card){const rect=card.getBoundingClientRect();gsap.fromTo(card,{scale:1},{scale:.985,duration:.08,yoyo:true,repeat:1,ease:"power1.inOut"});await wait(120);}
-  view("slotView");$("gameLoader").classList.remove("hidden");setGameProgress(0);try{
-    if(!state.engine){state.engine=new GameEngine({container:$("pixiStage"),quality:state.quality});state.engine.addEventListener("statechange",e=>{const s=e.detail.current;$("engineState").textContent=s;syncGameControls(s);});}
-    await state.engine.loadGame(id,p=>setGameProgress(Math.round(p*100)));$("gameLoader").classList.add("hidden");$("gameResult").textContent="READY";state.engine.haptics.impact("light");syncGameControls(GameState.IDLE);
-  }catch(error){$("gameResult").textContent="LOAD ERROR";toast(errorText(error.message));}
+  const slot=state.slots.find(s=>s.id===id);if(!slot||state.autoRemaining)return;
+  state.current=slot;state.bet=normalizeBet($("betInput").value||state.bet);$("betInput").value=state.bet;$("gameTitle").textContent=slot.name;$("gameMechanic").textContent=slot.mechanic;$("gameResult").textContent="LOADING";setEngineState(GameState.LOADING);
+  if(card){gsap.fromTo(card,{scale:1},{scale:.985,duration:.08,yoyo:true,repeat:1,ease:"power1.inOut"});await wait(90);}
+  view("slotView");$("gameLoader").classList.remove("hidden");setGameProgress(0);
+  try{
+    if(!state.engine){state.engine=new GameEngine({container:$("pixiStage"),quality:state.quality});state.engine.addEventListener("statechange",e=>{const raw=e.detail.current;setEngineState(raw);syncGameControls(raw);});}
+    await state.engine.loadGame(id,p=>setGameProgress(Math.round(p*100)));$("gameLoader").classList.add("hidden");$("gameResult").textContent="READY";setEngineState(GameState.IDLE);state.engine.haptics.impact("light");syncGameControls(GameState.IDLE);
+  }catch(error){$("gameLoader").classList.add("hidden");$("gameResult").textContent="LOAD ERROR";setEngineState(GameState.ERROR);toast(errorText(error.message));}
 }
 
-async function spinOnce({auto=false}={}){
+async function spinOnce(){
   if(!state.current||!state.engine?.canSpin())return false;const bet=normalizeBet($("betInput").value);if(bet>Number(state.player.balance||0)){toast("Недостаточно фишек");stopAuto();return false;}state.bet=bet;syncGameControls("LOCKED");$("gameResult").textContent="VERIFYING BET";
-  try{
-    const response=await api("/api/slot/spin",{gameId:state.current.id,bet,requestId:requestId()});
-    await state.engine.presentSpin(response,{onBalance:balance=>{state.player.balance=Number(balance);updateBalance(balance,true);},onStatus:text=>$("gameResult").textContent=text});return true;
-  }catch(error){toast(errorText(error.message));$("gameResult").textContent="READY";return false;}finally{syncGameControls(state.engine?.fsm?.current||GameState.IDLE);}
+  try{const response=await api("/api/slot/spin",{gameId:state.current.id,bet,requestId:requestId()});await state.engine.presentSpin(response,{onBalance:balance=>{state.player.balance=Number(balance);updateBalance(balance,true);},onStatus:text=>$("gameResult").textContent=text});return true;}catch(error){toast(errorText(error.message));$("gameResult").textContent="READY";return false;}finally{syncGameControls(state.engine?.fsm?.current||GameState.IDLE);}
 }
 
 function openBonusBuy(){
   if(!state.current||!state.engine?.canSpin())return;const bet=normalizeBet($("betInput").value),tiers=[{id:"standard",name:"GOLDEN ENTRY",cost:60,desc:"8 Free Spins • bonus multipliers start at x2"},{id:"premium",name:"ASCENSION",cost:100,desc:"10 Free Spins • longer feature session"},{id:"super",name:"DIVINE RUN",cost:180,desc:"12 Free Spins • maximum feature duration"}];
-  showModal(`<small>FEATURE BUY</small><h2>Golden Ascension</h2><p>Покупка сразу переводит игру в отдельный Free Spins mode. Результат всё равно определяется сервером; покупка не гарантирует выигрыш.</p><div class="modal-grid">${tiers.map(t=>`<button class="modal-option" data-buy-tier="${t.id}"><b>${t.name} • ${fmt(bet*t.cost)}</b><small>${t.cost}× BET • ${t.desc}</small></button>`).join("")}</div>`);
-  document.querySelectorAll("[data-buy-tier]").forEach(b=>b.onclick=()=>buyBonus(b.dataset.buyTier));
+  showModal(`<small>FEATURE BUY</small><h2>Golden Ascension</h2><p>Покупка сразу переводит игру в отдельный Free Spins mode. Результат всё равно определяется сервером; покупка не гарантирует выигрыш.</p><div class="modal-grid">${tiers.map(t=>`<button class="modal-option" data-buy-tier="${t.id}"><b>${t.name} • ${fmt(bet*t.cost)}</b><small>${t.cost}× BET • ${t.desc}</small></button>`).join("")}</div>`);document.querySelectorAll("[data-buy-tier]").forEach(b=>b.onclick=()=>buyBonus(b.dataset.buyTier));
 }
 
 async function buyBonus(tier){
@@ -75,7 +74,7 @@ async function buyBonus(tier){
 }
 
 function openAuto(){if(!state.engine?.canSpin())return;showModal(`<small>AUTO PLAY</small><h2>Автопрокрутки</h2><p>Следующий spin начинается только после полного reel sequence, cascades, bonus и win presentation предыдущего.</p><div class="modal-grid">${[10,25,50,100].map(n=>`<button class="modal-option" data-auto="${n}"><b>${n} SPINS</b><small>Остановить можно в любой момент кнопкой AUTO.</small></button>`).join("")}</div>`);document.querySelectorAll("[data-auto]").forEach(b=>b.onclick=()=>startAuto(Number(b.dataset.auto)));}
-async function startAuto(count){closeModal();state.autoRemaining=Math.max(1,count);state.autoStop=false;updateAutoLabel();while(state.autoRemaining>0&&!state.autoStop&&state.current){const ok=await spinOnce({auto:true});if(!ok)break;state.autoRemaining--;updateAutoLabel();if(state.autoRemaining>0&&!state.autoStop)await wait(450);}state.autoRemaining=0;state.autoStop=false;updateAutoLabel();}
+async function startAuto(count){closeModal();state.autoRemaining=Math.max(1,count);state.autoStop=false;updateAutoLabel();while(state.autoRemaining>0&&!state.autoStop&&state.current){const ok=await spinOnce();if(!ok)break;state.autoRemaining--;updateAutoLabel();if(state.autoRemaining>0&&!state.autoStop)await wait(450);}state.autoRemaining=0;state.autoStop=false;updateAutoLabel();}
 function stopAuto(){state.autoStop=true;state.autoRemaining=0;updateAutoLabel();}
 function updateAutoLabel(){$("autoCount").textContent=state.autoRemaining?String(state.autoRemaining):"PLAY";}
 
@@ -93,9 +92,10 @@ function openSettings(){const e=state.engine;showModal(`<small>PREFERENCES</smal
 
 function handleNav(nav,button){document.querySelectorAll("[data-nav]").forEach(x=>x.classList.remove("active"));button.classList.add("active");if(nav==="home")showLobby();else if(nav==="games"){showLobby();setTimeout(()=>$("classicSection")?.scrollIntoView({behavior:"smooth",block:"start"}),80);}else if(nav==="profile")openProfile();else if(nav==="settings")openSettings();}
 function showLobby(){if(state.autoRemaining)stopAuto();view("lobbyView");state.current=null;}
-function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(id).classList.add("active");window.scrollTo({top:0,behavior:"instant"});}
+function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(id).classList.add("active");$("app")?.classList.toggle("game-mode",id==="slotView");syncTelegramInsets();window.scrollTo({top:0,behavior:"auto"});}
 function refreshHeader(){const p=state.player;if(!p)return;$("playerName").textContent=p.firstName||"Игрок";$("avatarInitial").textContent=initial(p.firstName);$("vipLabel").textContent=`VIP ${Number(p.vip?.level||1)}`;$("vipTitle").textContent=`VIP LEVEL ${Number(p.vip?.level||1)}`;$("vipProgressText").textContent=`${Number(p.vip?.progress||0)}%`;$("vipProgress").style.width=`${Number(p.vip?.progress||0)}%`;$("jackpotValue").textContent=fmt(state.jackpot);updateBalance(p.balance,false);if(p.isAdmin)$("adminBtn").classList.remove("hidden");}
-function updateBalance(value,animate=false){$("balance").textContent=fmt(value);if(animate){$("balancePanel")?.classList?.add?.("flash");const box=document.querySelector(".balance-panel");box?.classList.remove("flash");void box?.offsetWidth;box?.classList.add("flash");}}
+function updateBalance(value,animate=false){const text=fmt(value);$("balance").textContent=text;if($("gameBalance"))$("gameBalance").textContent=text;if(animate){const box=document.querySelector(".balance-panel");box?.classList.remove("flash");void box?.offsetWidth;box?.classList.add("flash");}}
+function setEngineState(raw){if($("engineState"))$("engineState").textContent=STATE_LABELS[raw]||raw||"READY";}
 function syncGameControls(engineState){const allowed=engineState===GameState.IDLE;$("spinBtn").disabled=!allowed;$("bonusBuyBtn").disabled=!allowed;$("betInput").disabled=!allowed;document.querySelector("[data-bet-down]").disabled=!allowed;document.querySelector("[data-bet-up]").disabled=!allowed;if(state.autoRemaining)$("autoBtn").disabled=false;else $("autoBtn").disabled=!allowed;}
 function changeBet(dir){if(!state.engine?.canSpin())return;const current=normalizeBet($("betInput").value),idx=Math.max(0,BET_STEPS.findIndex(v=>v>=current)),next=BET_STEPS[Math.max(0,Math.min(BET_STEPS.length-1,idx+dir))];state.bet=next;$("betInput").value=next;gsap.fromTo($("betInput"),{scale:1.18},{scale:1,duration:.22,ease:"back.out(2)"});state.engine?.haptics?.selection?.();}
 function normalizeBet(v){const n=Math.floor(Number(v)||10000);return Math.max(1000,Math.min(5000000,n));}
@@ -103,6 +103,7 @@ function setGameProgress(p){p=Math.max(0,Math.min(100,p));$("gameLoadPercent").t
 function setBoot(p,text){$("bootPercent").textContent=`${p}%`;$("bootBar").style.width=`${p}%`;$("bootText").textContent=text;}
 function showModal(html){$("modalBody").innerHTML=html;$("modal").classList.remove("hidden");}
 function closeModal(){$("modal").classList.add("hidden");}
+function syncTelegramInsets(){const root=document.documentElement,content=tg?.contentSafeAreaInset||{},safe=tg?.safeAreaInset||{},styles=getComputedStyle(root),cssTop=parseFloat(styles.getPropertyValue("--tg-content-safe-area-inset-top"))||0,cssBottom=parseFloat(styles.getPropertyValue("--tg-content-safe-area-inset-bottom"))||0;root.style.setProperty("--tg-top",`${Math.round(Math.max(0,Number(content.top)||0,Number(safe.top)||0,cssTop))}px`);root.style.setProperty("--tg-bottom",`${Math.round(Math.max(0,Number(content.bottom)||0,Number(safe.bottom)||0,cssBottom))}px`);}
 async function api(path,payload){const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({initData:tg.initData,...payload})});let d;try{d=await r.json();}catch{throw new Error(`HTTP_${r.status}`)}if(!r.ok||d.ok===false)throw new Error(d.error||`HTTP_${r.status}`);return d;}
 function requestId(){return crypto.randomUUID?.()||`${Date.now()}_${Math.random().toString(36).slice(2)}`;}
 function toast(text){clearTimeout(toastTimer);$("toast").textContent=text;$("toast").classList.add("show");toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2200);}
