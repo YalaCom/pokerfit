@@ -1,0 +1,17 @@
+{
+  "id": "aureus",
+  "name": "AUREUS CASCADE",
+  "theme": "obsidian-temple",
+  "reels": 6,
+  "rows": 5,
+  "featureType": "TUMBLE_FREE_SPINS",
+  "betSteps": [1000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000,5000000],
+  "symbols": ["high_01","high_02","high_03","high_04","low_01","low_02","low_03","low_04","wild","scatter"],
+  "wildSymbol": "wild",
+  "scatterSymbol": "scatter",
+  "freeSpins": 8,
+  "cascadeMultipliers": [1,2,3,5,10],
+  "bonusCascadeMultipliers": [2,3,5,10,20],
+  "winThresholds": {"nice":5,"big":15,"mega":50,"epic":100,"max":1000},
+  "clientReelStrip": ["low_01","low_02","low_03","low_04","low_01","low_02","high_04","low_03","high_03","low_04","high_02","low_01","wild","low_02","high_01","low_03","scatter","low_04"]
+}
