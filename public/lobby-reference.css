@@ -1,0 +1,13 @@
+/* User-provided pixel reference lobby. Invisible hit zones preserve real app actions. */
+.casino-shell:has(#lobbyView.active){width:min(100%,864px);padding:0;background:#000}
+.casino-shell:has(#lobbyView.active)>.topbar,.casino-shell:has(#lobbyView.active)>#bottomNav{display:none!important}
+#lobbyView.active>.jackpot-banner,#lobbyView.active>.status-grid,#lobbyView.active>.section-title,#lobbyView.active>.slot-grid,#lobbyView.active>.classic-grid{display:none!important}
+.lobby-reference{position:relative;width:100%;max-width:864px;margin:0 auto;line-height:0;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none}
+.lobby-reference>img{display:block;width:100%;height:auto;pointer-events:none;-webkit-user-drag:none}
+.lobby-hotspot{position:absolute;z-index:4;border:0;margin:0;padding:0;border-radius:12px;background:transparent;color:transparent;box-shadow:none;outline:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lobby-hotspot:active{transform:none!important;background:rgba(255,255,255,.025)}
+.hs-close{left:6.3%;top:4.2%;width:8.2%;height:4.9%}.hs-profile{left:15.2%;top:4.25%;width:34.5%;height:5%}.hs-menu{left:85%;top:4.25%;width:9.6%;height:5%}
+.hs-daily{left:6.5%;top:29.5%;width:42.2%;height:8%}.hs-vip{left:50%;top:29.5%;width:44.5%;height:8%}
+.hs-aureus{left:6.4%;top:42%;width:88%;height:16.9%}.hs-honey{left:6.4%;top:59.65%;width:88%;height:8.3%}.hs-lucky{left:6.4%;top:68.2%;width:88%;height:8.35%}.hs-neon{left:6.4%;top:76.85%;width:88%;height:8.35%}.hs-olympus{left:6.4%;top:85.45%;width:88%;height:8.25%}
+.hs-home{left:6.4%;top:94.05%;width:22%;height:4.6%}.hs-games{left:28.4%;top:94.05%;width:22%;height:4.6%}.hs-bottom-profile{left:50.4%;top:94.05%;width:22%;height:4.6%}.hs-settings{left:72.4%;top:94.05%;width:22%;height:4.6%}
+@media(min-width:865px){.lobby-reference{border-radius:0 0 28px 28px}}

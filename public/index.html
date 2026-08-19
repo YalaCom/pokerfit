@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/howler@2/dist/howler.min.js"></script>
   <link rel="stylesheet" href="/casino.css">
   <link rel="stylesheet" href="/casino-fixes.css">
+  <link rel="stylesheet" href="/lobby-reference.css">
 </head>
 <body>
   <div id="toast" class="toast"></div>
@@ -22,6 +23,23 @@
     </header>
 
     <section id="lobbyView" class="view active">
+      <div class="lobby-reference" aria-label="FIT Casino lobby">
+        <img src="/assets/ui/lobby-reference.webp" alt="FIT Casino">
+        <button class="lobby-hotspot hs-close" aria-label="Закрыть" onclick="window.Telegram?.WebApp?.close?.()"></button>
+        <button class="lobby-hotspot hs-profile" data-nav="profile" aria-label="Профиль"></button>
+        <button class="lobby-hotspot hs-menu" data-nav="settings" aria-label="Настройки"></button>
+        <button class="lobby-hotspot hs-daily" aria-label="Daily Bonus" onclick="document.getElementById('dailyCard')?.click()"></button>
+        <button class="lobby-hotspot hs-vip" data-nav="profile" aria-label="VIP профиль"></button>
+        <button class="lobby-hotspot hs-aureus" data-slot="aureus" aria-label="Aureus Cascade"></button>
+        <button class="lobby-hotspot hs-honey" data-slot="honey_fruits" aria-label="Honey Fruits"></button>
+        <button class="lobby-hotspot hs-lucky" data-slot="lucky_coin_collector" aria-label="Lucky Coin Collector"></button>
+        <button class="lobby-hotspot hs-neon" data-slot="neon_beast_rampage" aria-label="Neon Beast Rampage"></button>
+        <button class="lobby-hotspot hs-olympus" data-slot="olympus_storm" aria-label="Olympus Storm"></button>
+        <button class="lobby-hotspot hs-home" data-nav="home" aria-label="Главная"></button>
+        <button class="lobby-hotspot hs-games" data-nav="games" aria-label="Игры"></button>
+        <button class="lobby-hotspot hs-bottom-profile" data-nav="profile" aria-label="Профиль"></button>
+        <button class="lobby-hotspot hs-settings" data-nav="settings" aria-label="Настройки"></button>
+      </div>
       <article class="jackpot-banner">
         <div><small>PROGRESSIVE</small><h1>GRAND JACKPOT</h1><strong id="jackpotValue">0</strong><p>Банк растёт вместе с игровыми раундами.</p></div>
         <div class="jackpot-rings" aria-hidden="true"><i></i><i></i><i></i></div>

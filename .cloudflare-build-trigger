@@ -1,3 +1,3 @@
-FIT Casino Olympus Storm sticky-reel release
-2026-08-19 22:09 +03:00
-RELEASE: fix OLYMPUS STORM only / remove independent random multiplier-orb behavior / Olympus multiplier now arrives as a full-height reel Wild with its own x2-x500 / Olympus participates with any regular symbol and fires lightning when it completes a win / base-game Olympus disappears after the round and immediately fades when there is no win / Free Spins Olympus reels stay sticky on the same columns for all following spins / new Olympus reels can accumulate up to all six columns / multiple active Olympus x values sum when they are used / 4+ Scatter 15 Free Spins, 3+ Scatter +5 retrigger, 100x feature buy and 5000x max win preserved / existing four slots unchanged
+FIT Casino screenshot lobby + Olympus Ways release
+2026-08-19 22:40 +03:00
+RELEASE: user-provided lobby screenshot rendered 1:1 with transparent interactive hit zones / Olympus changed from count-based Pay Anywhere to true left-to-right Ways / full-reel Olympus acts as Wild inside consecutive symbol chains / sticky Olympus reels persist through free spins while remaining reels continue spinning / lightning and win pause run before the next free spin whenever Olympus participates / multiplier rarity x2 > x5 > x10 > x500 / 15 Free Spins and +5 retrigger preserved / existing four slot mechanics unchanged
