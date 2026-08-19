@@ -1,3 +1,3 @@
-FIT Casino Honey Fruits controller recovery
-2026-08-19 17:36 +03:00
-RELEASE: remove all remaining private # methods from HoneyFruitsController / keep 10x8 layout / PixiJS emoji symbols / Giant Bee mechanics / no Bonus Buy / Auto Play / centered SPIN / active predeploy syntax checks
+FIT Casino Honey Fruits syntax recovery
+2026-08-19 17:39 +03:00
+RELEASE: rewrite HoneyFruitsController with validated syntax / remove private fields / preserve 10x8 emoji layout / Giant Bee bonus / no Bonus Buy / Auto Play / centered SPIN / node --check passed locally before push
