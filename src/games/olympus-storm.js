@@ -7,7 +7,7 @@ export const OLYMPUS_STORM_CONFIG={
     crown:{3:1.2,4:3,5:7.5,6:20},hourglass:{3:.9,4:2.2,5:5.5,6:15},ring:{3:.7,4:1.8,5:4.5,6:12},goblet:{3:.6,4:1.5,5:3.8,6:10},
     gem_red:{3:.5,4:1.25,5:3,6:8},gem_purple:{3:.45,4:1.1,5:2.6,6:7},gem_yellow:{3:.4,4:1,5:2.3,6:6},gem_green:{3:.35,4:.9,5:2,6:5.5},gem_blue:{3:.3,4:.8,5:1.8,6:5}
   },
-  linePayoutScale:1.25,
+  linePayoutScale:.875,
   multiplierValues:[2,5,10,500],multiplierWeights:[800,150,49,1],
   olympusChanceBase:.004,olympusChanceBonus:.012,freeSpins:15,retriggerSpins:5,bonusBuyCost:100,bonusBuyBoost:1.18
 };
