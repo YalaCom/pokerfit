@@ -39,19 +39,36 @@ export class ReelEngine{
     this.boardRoot=new this.PIXI.Container();this.boardRoot.position.set(this.originX,this.originY);this.boardRoot.sortableChildren=true;this.layer.addChild(this.boardRoot);this.boardMask=new this.PIXI.Graphics();this.boardMask.rect(this.originX,this.originY,this.boardW,this.boardH).fill({color:0xffffff});this.layer.addChild(this.boardMask);this.boardRoot.mask=this.boardMask;
     for(let c=0;c<cols;c++){
       const reelContainer=new this.PIXI.Container();reelContainer.x=c*(this.cellW+this.gap);reelContainer.y=0;reelContainer.zIndex=10;const strip=makeStrip(this.config),sprites=[];
-      for(let i=0;i<rows+3;i++){const id=strip[i%strip.length],tex=this.textures[id]||this.PIXI.Texture.WHITE,s=new this.PIXI.Sprite(tex);s.anchor.set(.5);s.x=this.cellW/2;reelContainer.addChild(s);sprites.push(s);}
+      for(let i=0;i<rows+3;i++){const id=strip[i%strip.length],s=this.createSymbol(id);s.anchor?.set?.(.5);s.x=this.cellW/2;reelContainer.addChild(s);sprites.push(s);}
       const reel={index:c,container:reelContainer,strip,sprites,position:secureOffset(strip.length),velocity:0,maxVelocity:(dense?23:18.5)+c*(dense?.28:.65),state:ReelState.IDLE,stateTime:0,blur:null};
       if(!dense||this.quality==="HIGH"){try{const blur=new this.PIXI.BlurFilter({strength:0,quality:1});reelContainer.filters=[blur];reel.blur=blur;}catch{}}
       this.reels.push(reel);this.boardRoot.addChild(reelContainer);this.#render(reel);
     }
     this.dropLayer=new this.PIXI.Container();this.dropLayer.zIndex=30;this.boardRoot.addChild(this.dropLayer);const topEdge=new this.PIXI.Graphics();topEdge.moveTo(this.originX,this.originY).lineTo(this.originX+this.boardW,this.originY).stroke({color:0xffe18a,width:1,alpha:.38});this.layer.addChild(topEdge);
   }
+  createSymbol(id){
+    const emoji=this.config.emojiSymbols?.[id];
+    if(emoji){const s=new this.PIXI.Text({text:emoji,style:{fontFamily:"Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",fontSize:104,align:"center"}});s.anchor.set(.5);s.__emoji=true;s.__id=id;return s;}
+    const tex=this.textures[id]||this.PIXI.Texture.WHITE,s=new this.PIXI.Sprite(tex);s.anchor.set(.5);s.__emoji=false;s.__id=id;return s;
+  }
   #update(dt){this.elapsed+=dt;for(const reel of this.reels){reel.stateTime+=dt;if(reel.state===ReelState.ACCELERATING){const p=Math.min(1,reel.stateTime/.15);reel.velocity=reel.maxVelocity*(1-Math.pow(1-p,3));reel.position+=reel.velocity*dt;if(p>=1){reel.state=ReelState.SPINNING;reel.stateTime=0;}}else if(reel.state===ReelState.SPINNING||reel.state===ReelState.ANTICIPATING)reel.position+=reel.velocity*dt;this.#render(reel);}}
-  #render(reel){const base=Math.floor(reel.position),frac=reel.position-base,spinning=[ReelState.ACCELERATING,ReelState.SPINNING,ReelState.ANTICIPATING,ReelState.DECELERATING].includes(reel.state),dense=this.config.reels>=12;for(let i=0;i<reel.sprites.length;i++){const s=reel.sprites[i],id=reel.strip[mod(base+i-1,reel.strip.length)],tex=this.textures[id]||this.PIXI.Texture.WHITE;if(s.__id!==id||s.texture!==tex){s.texture=tex;s.__id=id;}s.x=this.cellW/2;s.y=(i-1-frac)*(this.cellH+this.gap)+this.cellH/2;this.#fitSprite(s,spinning?(dense?.82:.78):(dense?.90:.82),spinning?1.08:1);s.alpha=spinning?.86:1;if(!spinning&&(id===this.config.wildSymbol||id===this.config.scatterSymbol)){const pulse=1+Math.sin(this.elapsed*(id===this.config.scatterSymbol?5.2:3.1)+i)*.025;s.scale.x*=pulse;s.scale.y*=pulse;}}}
+  #render(reel){
+    const base=Math.floor(reel.position),frac=reel.position-base,spinning=[ReelState.ACCELERATING,ReelState.SPINNING,ReelState.ANTICIPATING,ReelState.DECELERATING].includes(reel.state),dense=this.config.reels>=12;
+    for(let i=0;i<reel.sprites.length;i++){
+      const s=reel.sprites[i],id=reel.strip[mod(base+i-1,reel.strip.length)];
+      if(s.__emoji){const glyph=this.config.emojiSymbols?.[id]||"❔";if(s.__id!==id||s.text!==glyph){s.text=glyph;s.__id=id;}}
+      else{const tex=this.textures[id]||this.PIXI.Texture.WHITE;if(s.__id!==id||s.texture!==tex){s.texture=tex;s.__id=id;}}
+      s.x=this.cellW/2;s.y=(i-1-frac)*(this.cellH+this.gap)+this.cellH/2;this.#fitSprite(s,spinning?(dense?.82:.78):(dense?.90:.82),spinning?1.08:1);s.alpha=spinning?.86:1;
+      if(!spinning&&(id===this.config.wildSymbol||id===this.config.scatterSymbol)){const pulse=1+Math.sin(this.elapsed*(id===this.config.scatterSymbol?5.2:3.1)+i)*.025;s.scale.x*=pulse;s.scale.y*=pulse;}
+    }
+  }
   async #stopReel(reel,grid,c,duration){reel.state=ReelState.DECELERATING;reel.stateTime=0;const current=reel.position,target=Math.ceil(current)+Math.max(8,Math.floor(reel.maxVelocity*duration*.72));for(let r=0;r<this.config.rows;r++)reel.strip[mod(target+r,reel.strip.length)]=grid[r][c];await new Promise(resolve=>gsap.to(reel,{position:target,duration,ease:"power3.out",onComplete:resolve}));reel.state=ReelState.STOPPING;this.#setBlur(reel,false);await new Promise(resolve=>gsap.timeline().to(reel.container,{y:-this.cellH*.055,duration:.065,ease:"power1.out"}).to(reel.container,{y:this.cellH*.024,duration:.085,ease:"power1.inOut"}).to(reel.container,{y:0,duration:.12,ease:"back.out(2.2)",onComplete:resolve}));reel.position=target;reel.velocity=0;reel.state=ReelState.STOPPED;this.#render(reel);}
   async #animateWinningPositions(positions){const winners=new Set(positions.map(p=>`${p.r}:${p.c}`));for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(!s)continue;const hit=winners.has(`${r}:${reel.index}`);gsap.to(s,{alpha:hit?1:.28,duration:.11});if(hit){const bx=s.scale.x,by=s.scale.y;gsap.timeline().to(s.scale,{x:bx*1.11,y:by*1.11,duration:.14,ease:"power2.out"}).to(s.scale,{x:bx,y:by,duration:.14,ease:"back.out(2)"});}}await wait(340);for(const reel of this.reels)for(let r=0;r<this.config.rows;r++){const s=this.#spriteAt(r,reel.index);if(s)gsap.to(s,{alpha:1,duration:.09});}}
   #spriteAt(r,c){const reel=this.reels[c];if(!reel||r<0||r>=this.config.rows)return null;return reel.sprites[r+1]||null;}
-  #fitSprite(sprite,fill=.82,verticalStretch=1){const tw=Math.max(1,sprite.texture?.orig?.width||sprite.texture?.width||512),th=Math.max(1,sprite.texture?.orig?.height||sprite.texture?.height||512),scale=Math.min(this.cellW*fill/tw,this.cellH*fill/th);sprite.scale.set(scale,scale*verticalStretch);}
+  #fitSprite(sprite,fill=.82,verticalStretch=1){
+    if(sprite.__emoji){const scale=Math.min(this.cellW*fill/104,this.cellH*fill/104);sprite.scale.set(scale,scale*verticalStretch);return;}
+    const tw=Math.max(1,sprite.texture?.orig?.width||sprite.texture?.width||512),th=Math.max(1,sprite.texture?.orig?.height||sprite.texture?.height||512),scale=Math.min(this.cellW*fill/tw,this.cellH*fill/th);sprite.scale.set(scale,scale*verticalStretch);
+  }
   #cellX(c){return c*(this.cellW+this.gap)+this.cellW/2;}#cellY(r){return r*(this.cellH+this.gap)+this.cellH/2;}
   #setBlur(reel,on){if(!reel.blur)return;try{reel.blur.strength=on?(this.quality==="LOW"?1.8:4.5):0;if("blurX" in reel.blur)reel.blur.blurX=0;if("blurY" in reel.blur)reel.blur.blurY=on?(this.quality==="LOW"?2.5:7):0;}catch{}}
 }
