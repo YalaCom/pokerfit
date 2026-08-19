@@ -1,128 +1,13 @@
 const tg=window.Telegram?.WebApp;
 const $=id=>document.getElementById(id);
-const initData=tg?.initData||"";
-if(tg){tg.ready();tg.expand();}
-
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-const chips=n=>Number(n||0).toLocaleString("ru-RU");
-
-async function api(path,payload={}){
-  const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({initData,...payload})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok||d.ok===false)throw new Error(d.error||"ERROR");
-  return d;
-}
-
-function toast(text){
-  $("toast").textContent=text;
-  $("toast").classList.add("show");
-  setTimeout(()=>$("toast").classList.remove("show"),1800);
-}
-
-async function boot(){
-  if(!initData)return $("status").textContent="Открой админку из Mini App.";
-  try{
-    const b=await api("/api/bootstrap");
-    if(!b.admin)throw new Error("Нет доступа");
-    $("status").classList.add("hidden");
-    $("panel").classList.remove("hidden");
-    loadUsers();
-  }catch(e){$("status").textContent=e.message;}
-}
-
-async function loadUsers(){
-  const d=await api("/admin-api/users",{query:$("q").value});
-  $("users").innerHTML=d.users.map(u=>`
-    <div class="admin-row" data-user-row="${u.telegram_id}">
-      <div class="top">
-        <div>
-          <b>${esc(u.first_name||u.username||u.telegram_id)}</b>
-          <div class="meta">${esc(u.username?"@"+u.username:"")} • ID ${u.telegram_id}<br>LEVEL ${u.level} • XP ${u.xp}</div>
-        </div>
-        <div class="gold">${chips(u.balance)}</div>
-      </div>
-      <div class="admin-controls">
-        <button data-add="${u.telegram_id}">+100K</button>
-        <button data-sub="${u.telegram_id}">-100K</button>
-        <button class="danger" data-ban="${u.telegram_id}" data-state="${u.is_banned}">${u.is_banned?"UNBAN":"BAN"}</button>
-      </div>
-      <div class="admin-deduct">
-        <input data-deduct-input="${u.telegram_id}" type="number" min="1" step="1" inputmode="numeric" placeholder="Сколько списать">
-        <button class="danger" data-deduct="${u.telegram_id}">СПИСАТЬ</button>
-        <button class="danger admin-zero" data-zero="${u.telegram_id}" data-balance="${Number(u.balance)||0}">ОБНУЛИТЬ</button>
-      </div>
-    </div>`).join("");
-
-  $("users").querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>adjust(b.dataset.add,100000));
-  $("users").querySelectorAll("[data-sub]").forEach(b=>b.onclick=()=>adjust(b.dataset.sub,-100000));
-  $("users").querySelectorAll("[data-ban]").forEach(b=>b.onclick=()=>ban(b.dataset.ban,b.dataset.state!=="1"));
-  $("users").querySelectorAll("[data-deduct]").forEach(b=>b.onclick=()=>deductCustom(b.dataset.deduct));
-  $("users").querySelectorAll("[data-zero]").forEach(b=>b.onclick=()=>zeroBalance(b.dataset.zero,Number(b.dataset.balance||0)));
-}
-
-async function deductCustom(id){
-  const input=document.querySelector(`[data-deduct-input="${CSS.escape(String(id))}"]`);
-  const amount=Math.trunc(Number(input?.value||0));
-  if(!Number.isFinite(amount)||amount<=0)return toast("Введи сумму списания");
-  try{
-    const d=await api("/admin-api/adjust",{telegramId:id,amount:-amount});
-    toast(`Списано ${chips(amount)} • баланс ${chips(d.balance)}`);
-    loadUsers();
-  }catch(e){toast(e.message);}
-}
-
-async function zeroBalance(id,balance){
-  const amount=Math.trunc(Number(balance||0));
-  if(amount<=0)return toast("Баланс уже 0");
-  if(!confirm(`Обнулить баланс игрока?\nБудет списано ${chips(amount)} фишек.`))return;
-  try{
-    const d=await api("/admin-api/adjust",{telegramId:id,amount:-amount});
-    toast(`Баланс обнулён • ${chips(d.balance)}`);
-    loadUsers();
-  }catch(e){toast(e.message);}
-}
-
-async function adjust(id,amount){
-  try{await api("/admin-api/adjust",{telegramId:id,amount});toast("Готово");loadUsers();}
-  catch(e){toast(e.message);}
-}
-
-async function ban(id,banned){
-  try{await api("/admin-api/ban",{telegramId:id,banned});toast("Готово");loadUsers();}
-  catch(e){toast(e.message);}
-}
-
-async function loadTables(){
-  const d=await api("/admin-api/tables");
-  $("tables").innerHTML=d.tables.map(t=>`<div class="admin-row"><div class="top"><div><b>${esc(t.name)}</b><div class="meta">${t.id}<br>${t.sb}/${t.bb} • ${t.current_players}/${t.max_players}</div></div><div class="gold">${esc(t.status)}</div></div><div class="admin-controls"><button class="danger" data-stop="${t.id}">STOP</button></div></div>`).join("");
-  $("tables").querySelectorAll("[data-stop]").forEach(b=>b.onclick=async()=>{await api("/admin-api/stop-table",{tableId:b.dataset.stop});loadTables();});
-}
-
-async function loadTournaments(){
-  const d=await api("/admin-api/tournaments");
-  $("tournaments").innerHTML=d.tournaments.map(t=>`<div class="admin-row"><div class="top"><div><b>${esc(t.name)}</b><div class="meta">${esc(t.starts_at)}<br>${t.registered_players}/${t.max_players} • ${t.buy_in}</div></div><div class="gold">${esc(t.status)}</div></div>${t.status==="scheduled"?`<div class="admin-controls"><button class="danger" data-tcancel="${t.id}">CANCEL</button></div>`:""}</div>`).join("");
-  $("tournaments").querySelectorAll("[data-tcancel]").forEach(b=>b.onclick=async()=>{await api("/admin-api/tournament-cancel",{id:b.dataset.tcancel});loadTournaments();});
-}
-
-$("tcreate").onclick=async()=>{
-  try{
-    await api("/admin-api/tournament-save",{name:$("tn").value,startsAt:new Date($("ts").value).toISOString(),buyIn:Number($("tb").value),startStack:Number($("tstack").value),maxPlayers:Number($("tmax").value)});
-    toast("Создан");loadTournaments();
-  }catch(e){toast(e.message);}
-};
-
-async function loadLogs(){
-  const d=await api("/admin-api/logs");
-  $("logs").innerHTML=d.logs.map(l=>`<div class="admin-row"><b>${esc(l.action)}</b><div class="meta">${esc(l.target||"")} • ${esc(l.created_at)}</div></div>`).join("");
-}
-
-$("search").onclick=loadUsers;
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));
-  ["users","tables","tournaments","logs"].forEach(n=>$(`${n}Tab`).classList.toggle("hidden",n!==b.dataset.tab));
-  if(b.dataset.tab==="tables")loadTables();
-  if(b.dataset.tab==="tournaments")loadTournaments();
-  if(b.dataset.tab==="logs")loadLogs();
-});
-
+let users=[];
 boot();
+async function boot(){if(!tg?.initData){showError("Открой админку из Telegram Mini App");return;}tg.ready();tg.expand();try{const boot=await api("/api/bootstrap",{});if(!boot.player?.isAdmin){showError("Доступ только для администратора");return;}await load();$("refresh").onclick=load;$("search").oninput=renderUsers;}catch(e){showError(e.message);}}
+async function load(){try{const [u,s]=await Promise.all([api("/api/admin/users",{}),api("/api/admin/stats",{})]);users=u.users||[];renderStats(s);renderUsers();renderGames(s.games||[]);}catch(e){toast(e.message);}}
+function renderStats(s){const t=s.totals||{};$("adminStats").innerHTML=`<div class="admin-stat"><small>ИГРОКОВ</small><b>${fmt(t.players||0)}</b></div><div class="admin-stat"><small>ФИШЕК В СИСТЕМЕ</small><b>${fmt(t.chips||0)}</b></div><div class="admin-stat"><small>ТЫ</small><b>ADMIN</b></div>`;}
+function renderUsers(){const q=$("search")?.value?.trim().toLowerCase()||"";const list=users.filter(u=>!q||String(u.telegramId).includes(q)||String(u.username||"").toLowerCase().includes(q)||`${u.firstName||""} ${u.lastName||""}`.toLowerCase().includes(q));$("users").innerHTML=list.map(u=>`<article class="admin-user" data-user="${u.telegramId}"><div class="admin-user-head"><div><b>${esc(u.firstName||"Игрок")} ${esc(u.lastName||"")}${u.isAdmin?' • ADMIN':''}</b><small>@${esc(u.username||"—")} • ID ${esc(u.telegramId)}</small></div><span>${fmt(u.balance)}</span></div><div class="admin-actions"><input data-amount type="number" min="1" step="1000" placeholder="Сумма"><button class="add-btn" data-add>+ ВЫДАТЬ</button><button class="sub-btn" data-sub>− СПИСАТЬ</button></div><button class="zero-btn" data-zero style="width:100%;margin-top:6px">ОБНУЛИТЬ БАЛАНС</button></article>`).join("")||'<div class="admin-error">Игроки не найдены</div>';document.querySelectorAll("[data-user]").forEach(card=>{const id=card.dataset.user,amount=()=>Math.max(0,Math.floor(Number(card.querySelector("[data-amount]").value||0)));card.querySelector("[data-add]").onclick=()=>adjust(id,amount());card.querySelector("[data-sub]").onclick=()=>adjust(id,-amount());card.querySelector("[data-zero]").onclick=()=>{const u=users.find(x=>x.telegramId===id);if(u&&u.balance>0)adjust(id,-u.balance);};});}
+async function adjust(id,delta){if(!delta)return toast("Укажи сумму");try{const r=await api("/api/admin/adjust",{telegramId:id,delta});const u=users.find(x=>x.telegramId===id);if(u)u.balance=r.balance;toast(`Баланс: ${fmt(r.balance)}`);renderUsers();const s=await api("/api/admin/stats",{});renderStats(s);renderGames(s.games||[]);}catch(e){toast(e.message);}}
+function renderGames(games){$("games").innerHTML=games.map(g=>`<div class="admin-game"><b>${esc(g.game_id)}</b><span>${fmt(g.rounds)} раундов</span><span>${fmt(g.wagered)} ставок</span><span>RTP ${Number(g.rtp||0).toFixed(2)}%</span></div>`).join("")||'<div class="admin-error">Пока нет сыгранных раундов</div>';}
+function showError(t){document.body.innerHTML=`<main class="admin-shell"><div class="admin-error">${esc(t)}</div></main>`;}
+async function api(path,data){const r=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({initData:tg.initData,...data})});const j=await r.json().catch(()=>({ok:false,error:"BAD_RESPONSE"}));if(!r.ok||!j.ok)throw new Error(j.error||`HTTP_${r.status}`);return j;}
+function fmt(v){return Number(v||0).toLocaleString("ru-RU");}function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}function toast(t){const el=$("toast");if(!el)return;el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),1600);}
