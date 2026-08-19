@@ -17,14 +17,14 @@ export class CoinFeatureController{
       if(Number(layer.layerMultiplier||1)>1){if(!bonus&&e.fsm.is(GameState.COIN_REVEAL))e.fsm.transition(GameState.COIN_MULTIPLIER);await this.animator.showMultiplier(layer.layerMultiplier);}
       if(layer.collector){
         if(bonus){if(!e.fsm.is(GameState.BONUS_COLLECTOR))e.fsm.transition(GameState.BONUS_COLLECTOR);}else{if(e.fsm.is(GameState.COIN_REVEAL,GameState.COIN_MULTIPLIER))e.fsm.transition(GameState.COLLECTOR_TRIGGER);e.fsm.transition(GameState.COLLECTING);}
-        onStatus(`COLLECTOR • ${Number(layer.creditedX||0).toFixed(layer.creditedX%1?2:0)}x`);await this.collector.collect(layer,{bonus});
+        onStatus(`COLLECTOR • ${fmt(layer.creditedAmount)}`);await this.collector.collect(layer,{bonus});
       }
       if(layer.refresh){
         if(bonus){if(!e.fsm.is(GameState.BONUS_COIN_REFRESH))e.fsm.transition(GameState.BONUS_COIN_REFRESH);}else{if(!e.fsm.is(GameState.COIN_REFRESH))e.fsm.transition(GameState.COIN_REFRESH);}
         onStatus("COIN REFRESH");await this.animator.refresh(layer.usedCollectors||[]);
       }
     }
-    if(!bonus){if(!e.fsm.is(GameState.COIN_FEATURE_END))e.fsm.transition(GameState.COIN_FEATURE_END);}this.animator.setDimmed(false);await wait(100);this.animator.clear();return Number(feature.payout||0);
+    if(!bonus){if(!e.fsm.is(GameState.COIN_FEATURE_END))e.fsm.transition(GameState.COIN_FEATURE_END);}this.animator.setDimmed(false);await wait(80);this.animator.clear();return Number(feature.payout||0);
   }
 }
-function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+function fmt(n){return Math.floor(Number(n)||0).toLocaleString("ru-RU");}function wait(ms){return new Promise(r=>setTimeout(r,ms));}
