@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "games": {
+    "aureus": {
+      "config": "/assets/games/aureus/config.json",
+      "atlas": "/assets/games/aureus/atlas/symbols.json",
+      "background": "/assets/games/aureus/background.svg",
+      "bonusBackground": "/assets/games/aureus/bonus-background.svg",
+      "cover": "/assets/game-covers/aureus.svg"
+    }
+  },
+  "covers": {
+    "roulette": "/assets/game-covers/roulette.svg",
+    "blackjack": "/assets/game-covers/blackjack.svg",
+    "plinko": "/assets/game-covers/plinko.svg",
+    "dice": "/assets/game-covers/dice.svg",
+    "coinflip": "/assets/game-covers/coinflip.svg",
+    "baccarat": "/assets/game-covers/baccarat.svg"
+  }
+}
