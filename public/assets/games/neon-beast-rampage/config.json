@@ -1,0 +1,23 @@
+{
+  "id":"neon_beast_rampage",
+  "name":"NEON BEAST: RAMPAGE",
+  "theme":"neon-beast",
+  "controller":"NEON_BEAST_RAMPAGE",
+  "reels":6,
+  "rows":4,
+  "featureType":"PORTAL_MORPH_RAMPAGE",
+  "betSteps":[1000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000,5000000],
+  "symbols":["bot","alien","dragon","crystal","eye","beast","wild","portal","paw_scatter"],
+  "emojiSymbols":{"bot":"🤖","alien":"👾","dragon":"🐉","crystal":"🔷","eye":"🧿","beast":"😈","wild":"⚡","portal":"🌀","paw_scatter":"🐾"},
+  "wildSymbol":"wild",
+  "scatterSymbol":"paw_scatter",
+  "portalSymbol":"portal",
+  "portalTriggerCount":2,
+  "scatterTriggerCount":3,
+  "rampageRounds":5,
+  "maxWinMultiplier":2000,
+  "volatility":"HIGH",
+  "winThresholds":{"nice":5,"big":15,"mega":50,"epic":100,"max":2000},
+  "audioTheme":"neon",
+  "clientReelStrip":["bot","alien","dragon","bot","crystal","eye","portal","alien","beast","bot","wild","dragon","paw_scatter","alien","crystal","bot","eye","portal","dragon","alien","beast","bot","crystal","wild"]
+}
