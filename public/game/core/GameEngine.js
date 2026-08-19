@@ -6,6 +6,7 @@ import {ParticleManager} from "./ParticleManager.js";
 import {WinPresentationManager} from "./WinPresentationManager.js";
 import {ReelEngine} from "./ReelEngine.js";
 import {HoneyFruitsController} from "../games/HoneyFruitsController.js";
+import {LuckyCoinCollectorController} from "../games/LuckyCoinCollectorController.js";
 
 export class GameEngine extends EventTarget{
   constructor({PIXI=window.PIXI,container,tg=window.Telegram?.WebApp,quality="AUTO"}={}){
@@ -32,6 +33,7 @@ export class GameEngine extends EventTarget{
       this.particles=new ParticleManager(this.app,this.layers.particles,{quality:this.quality});
       this.win=new WinPresentationManager({app:this.app,rootLayer:this.layers.ui,particleManager:this.particles,audio:this.audio,haptics:this.haptics,camera:this.layers.game,thresholds:this.config.winThresholds});
       if(this.config.controller==="HONEY_FRUITS")this.controller=new HoneyFruitsController(this);
+      else if(this.config.controller==="LUCKY_COIN_COLLECTOR")this.controller=new LuckyCoinCollectorController(this);
       this.audio.startBaseMusic();this.fsm.transition(this.controller?GameState.BASE_IDLE:GameState.IDLE);this.#idleLoop();return this.config;
     }catch(error){this.#toError();throw error;}
   }
@@ -63,7 +65,7 @@ export class GameEngine extends EventTarget{
   #buildScene(bonus=false){const layer=this.layers.background;layer.removeChildren();const tex=bonus?this.resources?.bonusBackground:this.resources?.background;if(tex){const s=new this.PIXI.Sprite(tex);const scale=Math.max(this.app.screen.width/Math.max(1,tex.width),this.app.screen.height/Math.max(1,tex.height));s.scale.set(scale);s.x=(this.app.screen.width-s.width)/2;s.y=(this.app.screen.height-s.height)/2;layer.addChild(s);}const shade=new this.PIXI.Graphics().rect(0,0,this.app.screen.width,this.app.screen.height).fill({color:0x020407,alpha:bonus ? .14 : .26});layer.addChild(shade);}
   #finishToIdle(){if(this.fsm.current===GameState.BONUS_OUTRO)this.fsm.transition(GameState.RETURN_TO_BASE_GAME);if(this.fsm.current===GameState.RETURN_TO_BASE_GAME)this.fsm.transition(GameState.IDLE);else if([GameState.SMALL_WIN,GameState.BIG_WIN,GameState.MAX_WIN,GameState.EVALUATING].includes(this.fsm.current))this.fsm.transition(GameState.IDLE);}
   #toError(){try{if(!this.fsm.is(GameState.ERROR)){if(this.fsm.can(GameState.ERROR))this.fsm.transition(GameState.ERROR);else this.fsm.current=GameState.ERROR;}}catch{this.fsm.current=GameState.ERROR;}}
-  #idleLoop(){if(this._idleStarted)return;this._idleStarted=true;let last=0;const tick=t=>{if(t-last>2800&&this.fsm?.is(GameState.IDLE,GameState.BASE_IDLE)){last=t;this.particles?.emit(this.config?.controller==="HONEY_FRUITS"?"pollen":"magicTrail",this.app.screen.width*(.15+Math.random()*.7),this.app.screen.height*(.18+Math.random()*.45),{count:this.quality==="LOW"?2:4,tint:this.config?.controller==="HONEY_FRUITS"?0xffdf77:0xd5b65f,speed:26,life:1.25});}requestAnimationFrame(tick);};requestAnimationFrame(tick);}
+  #idleLoop(){if(this._idleStarted)return;this._idleStarted=true;let last=0;const tick=t=>{if(t-last>2800&&this.fsm?.is(GameState.IDLE,GameState.BASE_IDLE)){last=t;const lucky=this.config?.controller==="LUCKY_COIN_COLLECTOR",honey=this.config?.controller==="HONEY_FRUITS",preset=lucky?"goldDust":honey?"pollen":"magicTrail",tint=lucky?0xffd766:honey?0xffdf77:0xd5b65f;this.particles?.emit(preset,this.app.screen.width*(.15+Math.random()*.7),this.app.screen.height*(.18+Math.random()*.45),{count:this.quality==="LOW"?2:4,tint,speed:26,life:1.25});}requestAnimationFrame(tick);};requestAnimationFrame(tick);}
   #wireState(){this.fsm.addEventListener("change",e=>this.dispatchEvent(new CustomEvent("statechange",{detail:e.detail})));}
 }
 function resultLabel(payout,bet,multiplier){payout=Math.max(0,Number(payout)||0);bet=Math.max(1,Number(bet)||1);if(!payout)return "NO WIN";const prefix=payout<bet?"RETURN":"WIN";return `${prefix} ${format(payout)} • x${Number(multiplier||payout/bet).toFixed(2)}`;}
