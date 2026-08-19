@@ -1,19 +1,19 @@
 export const HONEY_FRUITS_CONFIG={
-  id:"honey_fruits",name:"HONEY FRUITS",rows:10,reels:18,mechanic:"WAYS + GIANT BEE",feature:"HONEY_BEE_BONUS",maxWin:1000,
+  id:"honey_fruits",name:"HONEY FRUITS",rows:8,reels:10,mechanic:"WAYS + GIANT BEE",feature:"HONEY_BEE_BONUS",maxWin:1000,
   symbols:["apple","orange","lemon","grapes","watermelon","cherry","strawberry","honey","wild","bee_scatter"],wild:"wild",scatter:"bee_scatter",
   initialBonusSpins:6,growthExtraSpins:2,maxLevelBeeExtraSpins:1,
   beeSizes:[[2,2],[3,3],[4,4],[5,5],[6,5]],growthRequirements:[1,2,3,4],
-  baseWeights:{apple:18,orange:17,lemon:17,grapes:15,watermelon:14,cherry:16,strawberry:14,honey:7,wild:1.25,bee_scatter:.32},
-  bonusWeights:{apple:18,orange:17,lemon:17,grapes:15,watermelon:14,cherry:16,strawberry:14,honey:7,wild:1.55,bee_scatter:.18},
+  baseWeights:{apple:18,orange:17,lemon:17,grapes:15,watermelon:14,cherry:16,strawberry:14,honey:7,wild:1.25,bee_scatter:.72},
+  bonusWeights:{apple:18,orange:17,lemon:17,grapes:15,watermelon:14,cherry:16,strawberry:14,honey:7,wild:1.55,bee_scatter:.42},
   pay:{
-    apple:{3:.020,4:.035,5:.055,6:.080,7:.12,8:.18,9:.26,10:.38,11:.55,12:.80,13:1.15,14:1.65,15:2.3,16:3.2,17:4.5,18:6.2},
-    orange:{3:.022,4:.038,5:.060,6:.088,7:.13,8:.20,9:.29,10:.42,11:.61,12:.88,13:1.25,14:1.78,15:2.5,16:3.5,17:4.9,18:6.8},
-    lemon:{3:.024,4:.041,5:.064,6:.094,7:.14,8:.21,9:.31,10:.45,11:.65,12:.94,13:1.34,14:1.9,15:2.7,16:3.75,17:5.25,18:7.3},
-    grapes:{3:.027,4:.046,5:.072,6:.105,7:.155,8:.235,9:.34,10:.50,11:.72,12:1.04,13:1.48,14:2.1,15:2.95,16:4.1,17:5.75,18:8.0},
-    watermelon:{3:.030,4:.051,5:.080,6:.116,7:.17,8:.255,9:.37,10:.54,11:.78,12:1.12,13:1.60,14:2.26,15:3.18,16:4.42,17:6.15,18:8.55},
-    cherry:{3:.034,4:.058,5:.090,6:.132,7:.195,8:.29,9:.42,10:.61,11:.88,12:1.27,13:1.82,14:2.58,15:3.62,16:5.02,17:7.0,18:9.7},
-    strawberry:{3:.040,4:.068,5:.105,6:.154,7:.225,8:.335,9:.49,10:.71,11:1.02,12:1.47,13:2.10,14:2.98,15:4.18,16:5.8,17:8.05,18:11.1},
-    honey:{3:.055,4:.092,5:.142,6:.21,7:.31,8:.46,9:.67,10:.98,11:1.42,12:2.04,13:2.9,14:4.1,15:5.75,16:8.0,17:11.0,18:15.0}
+    apple:{3:.020,4:.035,5:.055,6:.080,7:.12,8:.18,9:.26,10:.38},
+    orange:{3:.022,4:.038,5:.060,6:.088,7:.13,8:.20,9:.29,10:.42},
+    lemon:{3:.024,4:.041,5:.064,6:.094,7:.14,8:.21,9:.31,10:.45},
+    grapes:{3:.027,4:.046,5:.072,6:.105,7:.155,8:.235,9:.34,10:.50},
+    watermelon:{3:.030,4:.051,5:.080,6:.116,7:.17,8:.255,9:.37,10:.54},
+    cherry:{3:.034,4:.058,5:.090,6:.132,7:.195,8:.29,9:.42,10:.61},
+    strawberry:{3:.040,4:.068,5:.105,6:.154,7:.225,8:.335,9:.49,10:.71},
+    honey:{3:.055,4:.092,5:.142,6:.21,7:.31,8:.46,9:.67,10:.98}
   }
 };
 
