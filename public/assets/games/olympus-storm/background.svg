@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#173b77"/><stop offset=".45" stop-color="#396da8"/><stop offset="1" stop-color="#0b1739"/></linearGradient><radialGradient id="sun"><stop stop-color="#fff9cf" stop-opacity=".95"/><stop offset=".35" stop-color="#ffd45f" stop-opacity=".4"/><stop offset="1" stop-color="#ffd45f" stop-opacity="0"/></radialGradient><linearGradient id="stone"><stop stop-color="#f2e4bc"/><stop offset=".55" stop-color="#9d8658"/><stop offset="1" stop-color="#443b32"/></linearGradient><filter id="blur"><feGaussianBlur stdDeviation="18"/></filter></defs>
+<rect width="1200" height="900" fill="url(#sky)"/><circle cx="600" cy="170" r="250" fill="url(#sun)"/>
+<g fill="#eaf4ff" opacity=".33" filter="url(#blur)"><ellipse cx="210" cy="220" rx="230" ry="75"/><ellipse cx="1000" cy="260" rx="250" ry="82"/><ellipse cx="620" cy="90" rx="180" ry="58"/></g>
+<path d="M0 650 180 530 330 600 500 475 650 585 820 490 990 590 1200 500V900H0Z" fill="#182954" opacity=".72"/>
+<g fill="url(#stone)" opacity=".85"><rect x="62" y="310" width="54" height="510"/><rect x="150" y="355" width="43" height="465"/><rect x="1005" y="342" width="43" height="478"/><rect x="1082" y="300" width="56" height="520"/><path d="M35 310h110l-18-48H55Z"/><path d="M982 342h90l-15-42h-60Z"/><path d="M1050 300h120l-20-50h-80Z"/></g>
+<path d="M0 792Q250 735 600 780T1200 770V900H0Z" fill="#10172d"/><path d="M535 80 482 176 535 159 500 244 593 132 550 143Z" fill="#fff28a" opacity=".72"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="768" viewBox="0 0 1200 768">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#234f91"/><stop offset=".55" stop-color="#163268"/><stop offset="1" stop-color="#070d22"/></linearGradient><radialGradient id="sun"><stop stop-color="#fff7bd"/><stop offset=".25" stop-color="#7ce5ff" stop-opacity=".55"/><stop offset="1" stop-color="#7ce5ff" stop-opacity="0"/></radialGradient><linearGradient id="gold"><stop stop-color="#fff6ad"/><stop offset=".5" stop-color="#e0ad37"/><stop offset="1" stop-color="#835010"/></linearGradient><filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect width="1200" height="768" rx="38" fill="url(#bg)"/><circle cx="600" cy="290" r="350" fill="url(#sun)" opacity=".65"/>
+<path d="M100 650V245h66v405M1035 650V245h66v405" stroke="url(#gold)" stroke-width="28"/><path d="M60 245h145M995 245h145" stroke="#ffe690" stroke-width="28"/>
+<path d="M610 72 514 240 594 215 526 386 706 171 626 193Z" fill="#fff189" stroke="#dca62e" stroke-width="9" filter="url(#glow)"/>
+<circle cx="170" cy="115" r="38" fill="#62d7ff" opacity=".45"/><circle cx="1028" cy="142" r="50" fill="#ffe16d" opacity=".34"/><circle cx="950" cy="580" r="29" fill="#82e6ff" opacity=".42"/>
+<text x="600" y="500" text-anchor="middle" font-family="Arial Black,Arial" font-size="112" font-weight="900" fill="url(#gold)" stroke="#4f3109" stroke-width="7" paint-order="stroke">OLYMPUS</text>
+<text x="600" y="615" text-anchor="middle" font-family="Arial Black,Arial" font-size="104" font-weight="900" fill="#d7f7ff" stroke="#153b78" stroke-width="8" paint-order="stroke">STORM</text>
+<text x="600" y="682" text-anchor="middle" font-family="Arial" font-size="32" font-weight="800" fill="#fff3a5" letter-spacing="7">PAY ANYWHERE • ×500</text>
+</svg>
