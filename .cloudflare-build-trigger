@@ -1,3 +1,3 @@
-FIT Casino Aureus stabilization final
-2026-08-19 14:08 +03:00
-FINAL BUILD: fixed reel viewport / stable local reel coordinates / true masked tumble drops / symbol atlas validation + manual Pixi frame fallback / game-state recovery / RETURN-WIN presentation tiers / Telegram content safe area / compact live balance / active casino syntax+asset+math checks
+FIT Casino Telegram chrome polish
+2026-08-19 15:36 +03:00
+BUILD: explicit game-mode for iOS Telegram / safe top inset sync / in-game balance moved below Telegram chrome / production state labels / sub-bet RETURN no full-screen celebration / active casino checks
