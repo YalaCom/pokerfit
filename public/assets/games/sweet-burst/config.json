@@ -1,0 +1,19 @@
+{
+  "id": "sweet_bonanza",
+  "name": "SWEET BONANZA",
+  "theme": "candy-sky",
+  "controller": "SWEET_BURST",
+  "audioTheme": "default",
+  "reels": 6,
+  "rows": 5,
+  "featureType": "SWEET_FREE_SPINS",
+  "betSteps": [1000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000,5000000],
+  "symbols": ["red_heart","purple_candy","green_candy","blue_candy","apple","plum","watermelon","grapes","banana","lollipop","bomb_2","bomb_3","bomb_5","bomb_10","bomb_25","bomb_50","bomb_100"],
+  "scatterSymbol": "lollipop",
+  "freeSpins": 10,
+  "retriggerSpins": 5,
+  "multiplierValues": [2,3,5,10,25,50,100],
+  "maxWinMultiplier": 21175,
+  "winThresholds": {"nice":5,"big":15,"mega":50,"epic":100,"max":21175},
+  "clientReelStrip": ["banana","grapes","watermelon","plum","apple","banana","blue_candy","grapes","green_candy","banana","purple_candy","watermelon","red_heart","banana","apple","grapes","lollipop","plum","blue_candy","banana","green_candy","grapes","watermelon","purple_candy","banana","apple"]
+}

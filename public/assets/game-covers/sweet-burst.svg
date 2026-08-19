@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+<defs><linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6edcff"/><stop offset=".48" stop-color="#ff8ed5"/><stop offset="1" stop-color="#ffd66f"/></linearGradient><radialGradient id="g"><stop stop-color="#fff8b6"/><stop offset="1" stop-color="#fff8b6" stop-opacity="0"/></radialGradient></defs>
+<rect width="900" height="520" rx="34" fill="url(#c)"/>
+<circle cx="690" cy="150" r="170" fill="url(#g)"/>
+<path d="M0 395 C150 300 260 350 390 285 C535 214 670 310 900 205 L900 520 L0 520Z" fill="#8b3aaf" opacity=".58"/>
+<g transform="translate(72 75)">
+<circle cx="120" cy="120" r="82" fill="#ff6ab9" stroke="#fff8d5" stroke-width="10"/><text x="120" y="140" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="900" fill="#fffbd7">×100</text>
+<line x1="122" y1="200" x2="105" y2="300" stroke="#fff7e0" stroke-width="18" stroke-linecap="round"/>
+</g>
+<text x="390" y="210" font-family="Arial,sans-serif" font-size="78" font-weight="900" fill="#fffce1" stroke="#7d286e" stroke-width="8" paint-order="stroke">SWEET</text>
+<text x="390" y="290" font-family="Arial,sans-serif" font-size="78" font-weight="900" fill="#fffce1" stroke="#7d286e" stroke-width="8" paint-order="stroke">BONANZA</text>
+<text x="395" y="345" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#4b1748">6×5 • TUMBLE • FREE SPINS • ×100</text>
+</svg>
