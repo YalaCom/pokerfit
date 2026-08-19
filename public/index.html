@@ -3,83 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#0b0810">
-  <title>Два Алексея — взрослая интерактивная история</title>
+  <meta name="theme-color" content="#07090f">
+  <title>FIT Casino</title>
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/howler@2/dist/howler.min.js"></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="ambient ambient-a"></div>
-  <div class="ambient ambient-b"></div>
+  <div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div>
+  <div id="toast" class="toast"></div>
+  <main id="app" class="app-shell hidden">
+    <header class="topbar">
+      <button id="homeBtn" class="brand"><span class="brand-diamond">◆</span><span><b>FIT CASINO</b><small>VIRTUAL CLUB</small></span></button>
+      <div class="balance-box"><small>BALANCE</small><strong id="balance">0</strong></div>
+      <button id="adminBtn" class="admin-chip hidden">ADMIN</button>
+    </header>
 
-  <main id="app" class="shell">
-    <section id="startScreen" class="start-screen">
-      <div class="cover-art" id="coverArt"></div>
-      <div class="cover-copy">
-        <div class="kicker">ВЗРОСЛАЯ ИНТЕРАКТИВНАЯ ИСТОРИЯ</div>
-        <h1>ДВА АЛЕКСЕЯ<br><span>ОДИН ДЕНЬ</span></h1>
-        <p>Длинная история на целый день: флирт, откровенные разговоры, близость, выборы и разные финалы. Каждое решение меняет отношения между героями.</p>
-      </div>
+    <section id="lobbyView" class="view active">
+      <article class="hero">
+        <div class="hero-copy"><small>PIXEL-PERFECT • 60 FPS</small><h1>CASINO<br><span>GAME FLOOR</span></h1><p>PixiJS reels, GSAP timelines, Howler SFX, haptics, anticipation и полноценная win presentation.</p></div>
+        <div class="hero-jackpot"><small>WELCOME BALANCE</small><b>10 000 000</b><span>виртуальных фишек</span></div>
+      </article>
 
-      <div class="role-title">КЕМ ИГРАЕМ?</div>
-      <div class="role-grid">
-        <button class="role-card" data-role="kozyr">
-          <div class="role-avatar kozyr">К</div>
-          <span>Играть за</span>
-          <b>АЛЕКСЕЯ КОЗЫРЯ</b>
-        </button>
-        <button class="role-card" data-role="kharlamov">
-          <div class="role-avatar kharlamov">Х</div>
-          <span>Играть за</span>
-          <b>АЛЕКСЕЯ ХАРЛАМОВА</b>
-        </button>
-      </div>
+      <div class="section-head"><div><small>FEATURED</small><h2>Слоты</h2></div><div class="filter-row"><button class="filter active" data-filter="all">Все</button><button class="filter" data-filter="tumble">Tumble</button><button class="filter" data-filter="wild">Wild</button></div></div>
+      <div id="slotGrid" class="slot-grid"></div>
 
-      <button id="continueButton" class="continue-button hidden">ПРОДОЛЖИТЬ ИСТОРИЮ</button>
-      <div class="cover-note">18+ • Вымышленные взрослые персонажи. Стилизованные изображения не копируют внешность реальных людей.</div>
+      <div class="section-head"><div><small>TABLE & INSTANT</small><h2>Обычные игры</h2></div></div>
+      <div id="classicGrid" class="classic-grid"></div>
     </section>
 
-    <section id="gameScreen" class="game-screen hidden">
-      <header class="story-header">
-        <button id="homeButton" class="round-button" aria-label="В меню"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg></button>
-        <div class="chapter-box"><small id="chapterLabel">ГЛАВА 1</small><b id="timeLabel">07:12</b></div>
-        <button id="restartButton" class="round-button" aria-label="Начать заново"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
-      </header>
-
-      <div class="progress-track"><i id="progressBar"></i></div>
-      <section id="sceneArt" class="scene-art"></section>
-
-      <section class="scene-card">
-        <div class="scene-meta"><span id="locationLabel">КВАРТИРА</span><span id="sceneCounter">1 / ~30</span></div>
-        <h2 id="sceneTitle">Утро</h2>
-        <div id="sceneText" class="scene-text"></div>
-        <div id="choices" class="choices"></div>
-      </section>
-
-      <section class="relationship-panel">
-        <div class="person-chip"><div id="playerAvatar" class="mini-avatar">К</div><span><small>ТЫ</small><b id="playerName">Алексей</b></span></div>
-        <div class="meters">
-          <div><span>ТЕПЛО</span><i><b id="warmthBar"></b></i><em id="warmthValue">48</em></div>
-          <div><span>ДОВЕРИЕ</span><i><b id="trustBar"></b></i><em id="trustValue">52</em></div>
-          <div><span>ИСКРА</span><i><b id="chaosBar"></b></i><em id="chaosValue">28</em></div>
-        </div>
-        <div class="person-chip right"><span><small>РЯДОМ</small><b id="partnerName">Алексей</b></span><div id="partnerAvatar" class="mini-avatar">Х</div></div>
-      </section>
+    <section id="slotView" class="view">
+      <div class="game-head"><button id="backBtn" class="icon-btn">‹</button><div><small id="gameMechanic">SLOT</small><h2 id="gameTitle">OLYMPUS THUNDER</h2></div><button id="infoBtn" class="icon-btn">i</button></div>
+      <div class="slot-stage-wrap"><div id="pixiStage" class="pixi-stage"></div><div id="winOverlay" class="win-overlay hidden"><small id="winTier">BIG WIN</small><strong id="winCounter">0</strong></div><div id="anticipation" class="anticipation hidden"><b>BONUS?</b><span>последний барабан...</span></div></div>
+      <div class="game-result" id="gameResult">Сделай ставку и запускай.</div>
+      <div class="control-deck">
+        <div class="bet-row"><button data-bet-down>−</button><div><small>СТАВКА</small><input id="betInput" type="number" min="1000" max="5000000" step="1000" value="10000"></div><button data-bet-up>+</button></div>
+        <div class="control-row"><button id="bonusBuyBtn" class="secondary-btn">BONUS BUY</button><button id="spinBtn" class="spin-btn"><span>SPIN</span></button><button id="autoBtn" class="secondary-btn">AUTO</button></div>
+      </div>
     </section>
 
-    <section id="endingScreen" class="ending-screen hidden">
-      <div id="endingArt" class="ending-art"></div>
-      <div class="ending-copy">
-        <small>ФИНАЛ ИСТОРИИ</small>
-        <h2 id="endingTitle">Идеальный день</h2>
-        <p id="endingText"></p>
-        <div id="endingStats" class="ending-stats"></div>
-        <button id="replayButton" class="primary-button">ПРОЙТИ ЕЩЁ РАЗ</button>
-      </div>
+    <section id="classicView" class="view">
+      <div class="game-head"><button id="classicBackBtn" class="icon-btn">‹</button><div><small>TABLE / INSTANT</small><h2 id="classicTitle">ROULETTE</h2></div><span></span></div>
+      <div id="classicBody" class="classic-body"></div>
     </section>
   </main>
 
-  <div id="toast" class="toast"></div>
-  <script type="module" src="/app.js"></script>
+  <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
+  <div id="splash" class="splash"><div class="splash-mark">◆</div><b>FIT CASINO</b><span id="splashText">LOADING GAME ENGINE…</span></div>
+  <script type="module" src="/casino-app.js"></script>
 </body>
 </html>
