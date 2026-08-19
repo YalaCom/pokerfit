@@ -1,3 +1,3 @@
 FIT Casino PixiJS reboot
-2026-08-19 12:41 +03:00
-DEPLOY: PixiJS 8 reels / GSAP timelines / Howler SFX / Telegram haptics / 8 modern slot themes / classic games / 10M starting balance / first registered user ADMIN / D1 casino tables / admin balance controls
+2026-08-19 12:58 +03:00
+DEPLOY FIX: delete legacy PokerTableDO and RussianRouletteDO namespaces via migration v3-casino-reboot / keep casino-main.js / D1 casino tables / PixiJS casino
