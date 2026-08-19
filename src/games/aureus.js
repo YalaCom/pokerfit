@@ -16,8 +16,7 @@ export function createAureusResult(bet){
   const base=runCascades(initialGrid,bet,{steps:AUREUS_CONFIG.cascadeMultipliers,startIndex:0,bonus:false});
   const scatterPayout=scatterCount>=3?Math.floor(bet*scatterFactor(scatterCount)):0;
   const bonusTriggered=scatterCount>=4;
-  let bonus=null;
-  if(bonusTriggered)bonus=createFreeSpins(bet,AUREUS_CONFIG.freeSpins);
+  const bonus=bonusTriggered?createFreeSpins(bet,AUREUS_CONFIG.freeSpins):null;
   const out={
     gameId:AUREUS_CONFIG.id,initialGrid,finalGrid:base.finalGrid,cascades:base.cascades,scatterPositions,scatterCount,scatterPayout,
     anticipationReel:findAnticipationReel(initialGrid),basePayout:base.payout+scatterPayout,bonusTriggered,bonusType:bonusTriggered?"AUREUS_FREE_SPINS":null,
@@ -26,13 +25,24 @@ export function createAureusResult(bet){
   return applyMaxWin(out,bet*AUREUS_CONFIG.maxWin);
 }
 
+export function createAureusBonusBuyResult(bet,tier="standard"){
+  bet=Math.max(1,Math.floor(Number(bet)||1));
+  const tierDef=tier==="super"?{spins:12}:tier==="premium"?{spins:10}:{spins:8};
+  const initialGrid=makeGrid(false),forced=[[1,0],[3,1],[4,3],[5,4]];
+  for(const [c,r] of forced)initialGrid[r][c]=AUREUS_CONFIG.scatter;
+  const scatterPositions=findSymbol(initialGrid,AUREUS_CONFIG.scatter),bonus=createFreeSpins(bet,tierDef.spins);
+  const out={gameId:AUREUS_CONFIG.id,initialGrid,finalGrid:cloneGrid(initialGrid),cascades:[],scatterPositions,scatterCount:scatterPositions.length,scatterPayout:0,anticipationReel:3,basePayout:0,bonusTriggered:true,bonusPurchased:true,bonusTier:tier,bonusType:"AUREUS_FREE_SPINS",freeSpinsAwarded:bonus.frames.length,bonus,payout:bonus.payout};
+  return applyMaxWin(out,bet*AUREUS_CONFIG.maxWin);
+}
+
 function createFreeSpins(bet,initialSpins){
   const frames=[];let remaining=initialSpins,multiplierIndex=0,total=0,guard=0;
-  while(remaining>0&&guard<14){remaining--;guard++;const grid=makeGrid(true),scatterPositions=findSymbol(grid,AUREUS_CONFIG.scatter),scatterCount=scatterPositions.length;
+  while(remaining>0&&guard<14){
+    remaining--;guard++;const grid=makeGrid(true),scatterPositions=findSymbol(grid,AUREUS_CONFIG.scatter),scatterCount=scatterPositions.length;
     const startMultiplier=AUREUS_CONFIG.bonusMultipliers[Math.min(multiplierIndex,AUREUS_CONFIG.bonusMultipliers.length-1)];
     const seq=runCascades(grid,bet,{steps:AUREUS_CONFIG.bonusMultipliers,startIndex:multiplierIndex,bonus:true});multiplierIndex=seq.endIndex;
     const retrigger=scatterCount>=3&&frames.length<12?2:0;remaining=Math.min(14-frames.length-1,remaining+retrigger);
-    const scatterPayout=scatterCount>=3?Math.floor(bet*scatterFactor(scatterCount)):0;const payout=seq.payout+scatterPayout;total+=payout;
+    const scatterPayout=scatterCount>=3?Math.floor(bet*scatterFactor(scatterCount)):0,payout=seq.payout+scatterPayout;total+=payout;
     frames.push({spin:frames.length+1,initialGrid:grid,finalGrid:seq.finalGrid,cascades:seq.cascades,scatterPositions,scatterCount,scatterPayout,anticipationReel:findAnticipationReel(grid),startMultiplier,endMultiplier:AUREUS_CONFIG.bonusMultipliers[Math.min(seq.endIndex,AUREUS_CONFIG.bonusMultipliers.length-1)],retrigger,payout});
   }
   return {type:"FREE_SPINS",name:"GOLDEN ASCENSION",frames,payout:total,totalSpins:frames.length};
@@ -43,7 +53,7 @@ function runCascades(startGrid,bet,{steps,startIndex=0,bonus=false}){
   for(let tumble=0;tumble<8;tumble++){
     const multiplier=steps[Math.min(index,steps.length-1)],evaluation=evaluateWays(current,bet,multiplier);
     if(!evaluation.wins.length)break;
-    const removed=uniquePositions(evaluation.wins.flatMap(w=>w.positions));const collapsed=collapseAndRefill(current,removed,bonus);const cascadePayout=evaluation.wins.reduce((s,w)=>s+w.amount,0);
+    const removed=uniquePositions(evaluation.wins.flatMap(w=>w.positions)),collapsed=collapseAndRefill(current,removed,bonus),cascadePayout=evaluation.wins.reduce((s,w)=>s+w.amount,0);
     payout+=cascadePayout;cascades.push({index:tumble+1,multiplier,wins:evaluation.wins,removed,drops:collapsed.drops,nextGrid:collapsed.grid,payout:cascadePayout});current=collapsed.grid;index++;
   }
   return {cascades,finalGrid:current,payout,endIndex:index};
@@ -82,5 +92,9 @@ function scatterFactor(n){return n>=6?25:n===5?10:n===4?4:n===3?1.5:0;}
 function uniquePositions(list){const map=new Map();for(const p of list)map.set(`${p.r}:${p.c}`,{r:p.r,c:p.c});return [...map.values()];}
 function cloneGrid(g){return g.map(r=>[...r]);}
 function secureInt(max){max=Math.max(1,Math.floor(max));const ceiling=0x100000000,limit=ceiling-(ceiling%max),a=new Uint32Array(1);do crypto.getRandomValues(a);while(a[0]>=limit);return a[0]%max;}
-function applyMaxWin(out,cap){const raw=Math.max(0,Number(out.payout||0));if(raw<=cap)return out;const ratio=cap/raw;scaleCascades(out.cascades,ratio);out.scatterPayout=Math.floor(Number(out.scatterPayout||0)*ratio);out.basePayout=Math.floor(Number(out.basePayout||0)*ratio);if(out.bonus){for(const frame of out.bonus.frames){scaleCascades(frame.cascades,ratio);frame.scatterPayout=Math.floor(Number(frame.scatterPayout||0)*ratio);frame.payout=Math.floor(Number(frame.payout||0)*ratio);}out.bonus.payout=out.bonus.frames.reduce((s,f)=>s+f.payout,0);}let total=out.basePayout+Number(out.bonus?.payout||0),delta=cap-total;if(delta!==0){if(out.bonus?.frames?.length){const f=out.bonus.frames.at(-1);f.payout=Math.max(0,f.payout+delta);out.bonus.payout+=delta;}else out.basePayout=Math.max(0,out.basePayout+delta);}out.payout=cap;out.maxWinReached=true;return out;}
+function applyMaxWin(out,cap){
+  const raw=Math.max(0,Number(out.payout||0));if(raw<=cap)return out;const ratio=cap/raw;scaleCascades(out.cascades,ratio);out.scatterPayout=Math.floor(Number(out.scatterPayout||0)*ratio);out.basePayout=Math.floor(Number(out.basePayout||0)*ratio);
+  if(out.bonus){for(const frame of out.bonus.frames){scaleCascades(frame.cascades,ratio);frame.scatterPayout=Math.floor(Number(frame.scatterPayout||0)*ratio);frame.payout=Math.floor(Number(frame.payout||0)*ratio);}out.bonus.payout=out.bonus.frames.reduce((s,f)=>s+f.payout,0);}
+  let total=out.basePayout+Number(out.bonus?.payout||0),delta=cap-total;if(delta!==0){if(out.bonus?.frames?.length){const f=out.bonus.frames.at(-1);f.payout=Math.max(0,f.payout+delta);out.bonus.payout+=delta;}else out.basePayout=Math.max(0,out.basePayout+delta);}out.payout=cap;out.maxWinReached=true;return out;
+}
 function scaleCascades(cascades,ratio){for(const c of cascades||[]){for(const w of c.wins||[])w.amount=Math.floor(Number(w.amount||0)*ratio);c.payout=(c.wins||[]).reduce((s,w)=>s+w.amount,0);}}
