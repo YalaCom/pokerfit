@@ -1,34 +1,10 @@
 {
-  "version":3,
+  "version":4,
   "games":{
-    "aureus":{
-      "config":"/assets/games/aureus/config.json",
-      "atlas":"/assets/games/aureus/atlas/symbols.json",
-      "background":"/assets/games/aureus/background.svg",
-      "bonusBackground":"/assets/games/aureus/bonus-background.svg",
-      "cover":"/assets/game-covers/aureus.svg"
-    },
-    "honey_fruits":{
-      "config":"/assets/games/honey-fruits/config.json",
-      "atlas":"/assets/games/honey-fruits/atlas/symbols.json",
-      "background":"/assets/games/honey-fruits/background.svg",
-      "bonusBackground":"/assets/games/honey-fruits/bonus-background.svg",
-      "cover":"/assets/game-covers/honey-fruits.svg",
-      "extras":{"giantBee":"/assets/games/honey-fruits/giant-bee.svg"}
-    },
-    "lucky_coin_collector":{
-      "config":"/assets/games/lucky-coin-collector/config.json",
-      "background":"/assets/games/lucky-coin-collector/background.svg",
-      "bonusBackground":"/assets/games/lucky-coin-collector/bonus-background.svg",
-      "cover":"/assets/game-covers/lucky-coin-collector.svg"
-    }
+    "aureus":{"config":"/assets/games/aureus/config.json","atlas":"/assets/games/aureus/atlas/symbols.json","background":"/assets/games/aureus/background.svg","bonusBackground":"/assets/games/aureus/bonus-background.svg","cover":"/assets/game-covers/aureus.svg"},
+    "honey_fruits":{"config":"/assets/games/honey-fruits/config.json","atlas":"/assets/games/honey-fruits/atlas/symbols.json","background":"/assets/games/honey-fruits/background.svg","bonusBackground":"/assets/games/honey-fruits/bonus-background.svg","cover":"/assets/game-covers/honey-fruits.svg","extras":{"giantBee":"/assets/games/honey-fruits/giant-bee.svg"}},
+    "lucky_coin_collector":{"config":"/assets/games/lucky-coin-collector/config.json","background":"/assets/games/lucky-coin-collector/background.svg","bonusBackground":"/assets/games/lucky-coin-collector/bonus-background.svg","cover":"/assets/game-covers/lucky-coin-collector.svg"},
+    "neon_beast_rampage":{"config":"/assets/games/neon-beast-rampage/config.json","background":"/assets/games/neon-beast-rampage/background.svg","bonusBackground":"/assets/games/neon-beast-rampage/bonus-background.svg","cover":"/assets/game-covers/neon-beast-rampage.svg"}
   },
-  "covers":{
-    "roulette":"/assets/game-covers/roulette.svg",
-    "blackjack":"/assets/game-covers/blackjack.svg",
-    "plinko":"/assets/game-covers/plinko.svg",
-    "dice":"/assets/game-covers/dice.svg",
-    "coinflip":"/assets/game-covers/coinflip.svg",
-    "baccarat":"/assets/game-covers/baccarat.svg"
-  }
+  "covers":{"roulette":"/assets/game-covers/roulette.svg","blackjack":"/assets/game-covers/blackjack.svg","plinko":"/assets/game-covers/plinko.svg","dice":"/assets/game-covers/dice.svg","coinflip":"/assets/game-covers/coinflip.svg","baccarat":"/assets/game-covers/baccarat.svg"}
 }
