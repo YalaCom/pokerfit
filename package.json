@@ -1,15 +1,13 @@
 {
-  "name": "fit-poker-club",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test tests/*.test.mjs",
-    "check": "node scripts/check.mjs",
-    "deploy": "npm run check && node scripts/deploy.mjs",
-    "dev": "npx wrangler dev"
+  "name":"two-alexeys-story",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "scripts":{
+    "test":"node --test tests/story.test.mjs",
+    "check":"node scripts/check.mjs",
+    "deploy":"npm run check && node scripts/deploy.mjs",
+    "dev":"npx wrangler dev --config wrangler.template.jsonc"
   },
-  "devDependencies": {
-    "wrangler": "^4.68.0"
-  }
+  "devDependencies":{"wrangler":"^4.68.0"}
 }
