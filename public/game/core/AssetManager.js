@@ -6,12 +6,15 @@ export class AssetManager{
     if(this.loaded.has(gameId)){onProgress(1);return this.loaded.get(gameId);}
     const config=await this.#json(entry.config);onProgress(.08);
     const resources={config,entry,textures:{},extras:{}};
-    const atlasData=await this.#json(entry.atlas);onProgress(.18);
-    let sheet=null;try{sheet=await this.PIXI.Assets.load(entry.atlas);}catch(error){console.warn("PIXIJ_SPRITESHEET_FALLBACK",error);}
-    if(sheet?.textures&&this.#hasAllTextures(sheet.textures,config.symbols))resources.textures=sheet.textures;
-    else resources.textures=await this.#manualAtlas(entry.atlas,atlasData,config.symbols);
-    onProgress(.46);
-    resources.atlas=sheet||{textures:resources.textures};
+    const emojiOnly=(config.symbols||[]).length>0&&(config.symbols||[]).every(id=>config.emojiSymbols?.[id]);
+    if(emojiOnly){resources.atlas=null;onProgress(.46);}else{
+      if(!entry.atlas)throw new Error(`ATLAS_MISSING:${gameId}`);
+      const atlasData=await this.#json(entry.atlas);onProgress(.18);
+      let sheet=null;try{sheet=await this.PIXI.Assets.load(entry.atlas);}catch(error){console.warn("PIXIJ_SPRITESHEET_FALLBACK",error);}
+      if(sheet?.textures&&this.#hasAllTextures(sheet.textures,config.symbols))resources.textures=sheet.textures;
+      else resources.textures=await this.#manualAtlas(entry.atlas,atlasData,config.symbols);
+      resources.atlas=sheet||{textures:resources.textures};onProgress(.46);
+    }
     const loadList=[["background",entry.background],["bonusBackground",entry.bonusBackground],["cover",entry.cover]].filter(([,url])=>url);let done=0;
     const extraEntries=Object.entries(entry.extras||{});const totalLoads=Math.max(1,loadList.length+extraEntries.length);
     for(const [key,url] of loadList){const asset=await this.PIXI.Assets.load(url);if(!asset)throw new Error(`ASSET_LOAD_FAILED:${url}`);resources[key]=asset;done++;onProgress(.46+(done/totalLoads)*.52);}
@@ -27,6 +30,6 @@ export class AssetManager{
     return textures;
   }
   #hasAllTextures(textures,ids){return (ids||[]).every(id=>textures?.[id]&&textures[id]!==this.PIXI.Texture.WHITE);}
-  #validate(resources){const missing=(resources.config.symbols||[]).filter(id=>!resources.textures?.[id]||resources.textures[id]===this.PIXI.Texture.WHITE);if(missing.length)throw new Error(`MISSING_SYMBOL_TEXTURES:${missing.join(",")}`);if(!resources.background)throw new Error("BACKGROUND_TEXTURE_MISSING");if(!resources.bonusBackground)throw new Error("BONUS_BACKGROUND_TEXTURE_MISSING");}
+  #validate(resources){const missing=(resources.config.symbols||[]).filter(id=>!resources.config.emojiSymbols?.[id]&&(!resources.textures?.[id]||resources.textures[id]===this.PIXI.Texture.WHITE));if(missing.length)throw new Error(`MISSING_SYMBOL_TEXTURES:${missing.join(",")}`);if(!resources.background)throw new Error("BACKGROUND_TEXTURE_MISSING");if(!resources.bonusBackground)throw new Error("BONUS_BACKGROUND_TEXTURE_MISSING");}
   async #json(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error(`ASSET_JSON_FAILED:${url}`);return r.json();}
 }
