@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1536" viewBox="0 0 2048 1536">
+<defs>
+  <radialGradient id="gold" cx="38%" cy="30%"><stop stop-color="#fff3ad"/><stop offset=".36" stop-color="#f5c552"/><stop offset=".72" stop-color="#b36a19"/><stop offset="1" stop-color="#4b2208"/></radialGradient>
+  <linearGradient id="gold2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1a8"/><stop offset=".32" stop-color="#e7aa35"/><stop offset=".72" stop-color="#7d3d0c"/><stop offset="1" stop-color="#f6d36e"/></linearGradient>
+  <radialGradient id="ruby"><stop stop-color="#ffb3a6"/><stop offset=".28" stop-color="#e6433f"/><stop offset=".72" stop-color="#681624"/><stop offset="1" stop-color="#21070d"/></radialGradient>
+  <radialGradient id="sapphire"><stop stop-color="#bdeaff"/><stop offset=".28" stop-color="#3089e8"/><stop offset=".72" stop-color="#183b85"/><stop offset="1" stop-color="#081225"/></radialGradient>
+  <radialGradient id="emerald"><stop stop-color="#c5ffe8"/><stop offset=".28" stop-color="#38c993"/><stop offset=".72" stop-color="#12624c"/><stop offset="1" stop-color="#061d18"/></radialGradient>
+  <radialGradient id="violet"><stop stop-color="#f2c7ff"/><stop offset=".28" stop-color="#a55de4"/><stop offset=".72" stop-color="#512078"/><stop offset="1" stop-color="#190826"/></radialGradient>
+  <linearGradient id="obsidian" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#303746"/><stop offset=".5" stop-color="#080b12"/><stop offset="1" stop-color="#151d2b"/></linearGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<!-- HIGH 01: solar medallion -->
+<g transform="translate(0 0)"><g transform="translate(256 256)">
+  <circle r="178" fill="#d9962a" opacity=".15" filter="url(#soft)"/>
+  <g fill="url(#gold2)" stroke="#4c2507" stroke-width="8"> 
+    <path d="M0-205 24-154 72-190 73-132 130-151 105-98 164-98 126-53 181-31 130 0 181 31 126 53 164 98 105 98 130 151 73 132 72 190 24 154 0 205-24 154-72 190-73 132-130 151-105 98-164 98-126 53-181 31-130 0-181-31-126-53-164-98-105-98-130-151-73-132-72-190-24-154Z"/>
+  </g><circle r="124" fill="url(#gold)" stroke="#ffeaa0" stroke-width="7"/><circle r="82" fill="url(#obsidian)" stroke="#dca73e" stroke-width="8"/><path d="M-50 15Q0-52 50 15Q0 76-50 15Z" fill="#f5c65e"/><circle cy="12" r="20" fill="#fff2a5" filter="url(#glow)"/><circle cy="12" r="8" fill="#141722"/>
+</g></g>
+<!-- HIGH 02: winged crown -->
+<g transform="translate(512 0)"><g transform="translate(256 270)">
+  <path d="M-180 42Q-120-8-96-82Q-58-30-22-62L-46 56Z" fill="url(#gold2)" stroke="#5c2f0b" stroke-width="8"/><path d="M180 42Q120-8 96-82Q58-30 22-62L46 56Z" fill="url(#gold2)" stroke="#5c2f0b" stroke-width="8"/>
+  <path d="M-108 46-82-90-24-34 0-128 24-34 82-90 108 46Z" fill="url(#gold)" stroke="#5a2b09" stroke-width="9"/><rect x="-112" y="42" width="224" height="58" rx="22" fill="url(#gold2)" stroke="#4b2208" stroke-width="8"/>
+  <circle cx="0" cy="66" r="18" fill="url(#ruby)"/><circle cx="-55" cy="67" r="12" fill="url(#sapphire)"/><circle cx="55" cy="67" r="12" fill="url(#emerald)"/><path d="M-76 112Q0 148 76 112" fill="none" stroke="#f7d878" stroke-width="8" opacity=".75"/>
+</g></g>
+<!-- HIGH 03: obsidian chalice -->
+<g transform="translate(1024 0)"><g transform="translate(256 260)">
+  <ellipse cy="-128" rx="116" ry="44" fill="url(#gold2)" stroke="#5a2b0b" stroke-width="8"/><path d="M-108-122Q-88 18 0 52Q88 18 108-122Q48-84 0-84Q-48-84-108-122Z" fill="url(#obsidian)" stroke="#d6a541" stroke-width="10"/>
+  <path d="M0 48V128M-72 158Q0 110 72 158" fill="none" stroke="url(#gold2)" stroke-width="22" stroke-linecap="round"/><path d="M-62-48Q0-84 62-48Q0 18-62-48Z" fill="#12233a" stroke="#d4a343" stroke-width="6"/><circle cy="-42" r="18" fill="#70d7ff" filter="url(#glow)"/>
+</g></g>
+<!-- HIGH 04: royal ring -->
+<g transform="translate(1536 0)"><g transform="translate(256 260)">
+  <ellipse cy="48" rx="118" ry="128" fill="none" stroke="url(#gold2)" stroke-width="38"/><path d="M-72-88 0-164 72-88 45-18H-45Z" fill="url(#sapphire)" stroke="#e2bd5b" stroke-width="11"/><path d="M0-150 0-30M-58-82 58-82" stroke="#d7f4ff" stroke-width="6" opacity=".55"/><circle cy="-82" r="12" fill="#fff" opacity=".9" filter="url(#glow)"/>
+</g></g>
+<!-- LOW 01 -->
+<g transform="translate(0 512)"><g transform="translate(256 256)"><path d="M0-172 136-70 104 112 0 174-104 112-136-70Z" fill="url(#ruby)" stroke="#f0b85c" stroke-width="11"/><path d="M0-132 72-44 34 92 0 122-34 92-72-44Z" fill="none" stroke="#ffd8b0" stroke-width="12" opacity=".5"/><path d="M-54 12 0-48 54 12 0 76Z" fill="#ffd2c9" opacity=".24"/></g></g>
+<!-- LOW 02 -->
+<g transform="translate(512 512)"><g transform="translate(256 256)"><path d="M0-172 136-70 104 112 0 174-104 112-136-70Z" fill="url(#sapphire)" stroke="#dfbd62" stroke-width="11"/><path d="M-72 52 0-110 72 52 0 118Z" fill="none" stroke="#d4f5ff" stroke-width="12" opacity=".5"/><circle cy="10" r="38" fill="#d6f7ff" opacity=".2"/></g></g>
+<!-- LOW 03 -->
+<g transform="translate(1024 512)"><g transform="translate(256 256)"><path d="M0-172 136-70 104 112 0 174-104 112-136-70Z" fill="url(#emerald)" stroke="#e3bd63" stroke-width="11"/><path d="M-70-46 0-114 70-46 46 82 0 122-46 82Z" fill="none" stroke="#d9fff1" stroke-width="12" opacity=".48"/><path d="M-44 24 0-34 44 24 0 78Z" fill="#eafff5" opacity=".18"/></g></g>
+<!-- LOW 04 -->
+<g transform="translate(1536 512)"><g transform="translate(256 256)"><path d="M0-172 136-70 104 112 0 174-104 112-136-70Z" fill="url(#violet)" stroke="#e0b85f" stroke-width="11"/><path d="M0-112 74 12 0 124-74 12Z" fill="none" stroke="#f4ddff" stroke-width="13" opacity=".48"/><circle cy="8" r="32" fill="#fff" opacity=".15"/></g></g>
+<!-- WILD -->
+<g transform="translate(0 1024)"><g transform="translate(256 256)">
+  <circle r="180" fill="#f3bc42" opacity=".12" filter="url(#soft)"/><path d="M22-190-128 22-34 12-76 188 142-68 40-52Z" fill="url(#gold)" stroke="#fff0a1" stroke-width="10" filter="url(#glow)"/><path d="M-110 144Q0 190 110 144" fill="none" stroke="#d49a31" stroke-width="8"/><circle cx="78" cy="-118" r="13" fill="#fff4ad"/>
+</g></g>
+<!-- SCATTER -->
+<g transform="translate(512 1024)"><g transform="translate(256 256)">
+  <circle r="178" fill="#63ddff" opacity=".12" filter="url(#soft)"/><path d="M0-182 116-72 86 112 0 174-86 112-116-72Z" fill="#081828" stroke="#e5c365" stroke-width="11"/><path d="M0-134 70-44 46 88 0 126-46 88-70-44Z" fill="url(#sapphire)" stroke="#8ee8ff" stroke-width="7" filter="url(#glow)"/><path d="M0-210V-164M0 164V210M-210 0H-164M164 0H210M-145-145-114-114M145-145 114-114M-145 145-114 114M145 145 114 114" stroke="#ffe17a" stroke-width="12" stroke-linecap="round"/>
+</g></g>
+</svg>
