@@ -1,63 +1,15 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "poker-club",
-  "main": "src/fresh-main.js",
-  "compatibility_date": "2026-08-18",
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "run_worker_first": [
-      "/",
-      "/api/*",
-      "/ws/*",
-      "/telegram/*",
-      "/admin-api/*"
-    ]
+  "$schema":"./node_modules/wrangler/config-schema.json",
+  "name":"poker-club",
+  "main":"src/fresh-main.js",
+  "compatibility_date":"2026-08-19",
+  "assets":{
+    "directory":"./public",
+    "binding":"ASSETS",
+    "run_worker_first":["/","/index.html","/styles.css","/app.js","/__story_version"]
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "poker-club-db",
-      "database_id": "__D1_DATABASE_ID__",
-      "migrations_dir": "migrations"
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "POKER_TABLES",
-        "class_name": "PokerTableDO"
-      },
-      {
-        "name": "ROULETTE_ROOMS",
-        "class_name": "RussianRouletteDO"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": [
-        "PokerTableDO"
-      ]
-    },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": [
-        "RussianRouletteDO"
-      ]
-    }
-  ],
-  "triggers": {
-    "crons": [
-      "* * * * *"
-    ]
-  },
-  "vars": {
-    "APP_NAME": "FIT POKER CLUB",
-    "APP_URL": "https://poker-club.btctgjr4t2.workers.dev",
-    "APP_TZ_OFFSET_MINUTES": "180",
-    "ADMIN_TELEGRAM_IDS": "5118943307",
-    "BOT_USERNAME": "fitpokerclubbot"
+  "vars":{
+    "APP_NAME":"Два Алексея — один день",
+    "APP_URL":"https://poker-club.btctgjr4t2.workers.dev"
   }
 }
