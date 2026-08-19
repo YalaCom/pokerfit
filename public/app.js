@@ -1,26 +1,197 @@
-import {tg,$,state,refreshBootstrap,nav,routeFromHash,registerView,bindSettings,closeModal,toast} from "./js/core.js";
-import {initPoker,loadTables,resumeActiveTable,closePokerSocket} from "./js/poker.js";
-import {initBlackjack} from "./js/blackjack.js";
-import {initSocial,loadFeed,loadNotifications,loadTournaments,loadRating,loadFriends,loadRewards,loadProfile,startRescueIfNeeded} from "./js/social.js";
-import {initCasino,loadCasino} from "./js/casino.js";
-import {initPokerEnhancements} from "./js/poker-enhance.js";
-import {initLuxuryUI} from "./js/luxury-ui.js";
-import {initClubAgreement} from "./js/club-agreement.js";
-import {initMaxWinUI} from "./js/maxwin-ui.js";
-import {initSafeSlots} from "./js/safe-slots.js";
+const tg=window.Telegram?.WebApp;
+const $=id=>document.getElementById(id);
+const SAVE_KEY="two-alexeys-story-v1";
+const TOTAL_PATH_STEPS=22;
+
+const roles={
+  kozyr:{name:"Алексей Козырь",short:"Козырь",letter:"К",className:"kozyr"},
+  kharlamov:{name:"Алексей Харламов",short:"Харламов",letter:"Х",className:"kharlamov"}
+};
+
+let state={role:null,node:"wake",warmth:50,trust:50,chaos:10,path:[],finalChoice:null};
+let toastTimer=null;
+
+const scenes={
+  wake:{chapter:"ГЛАВА 1 • УТРО",time:"07:12",location:"СПАЛЬНЯ",art:"bedroom",title:"Кто вообще придумал утро?",text:"Я просыпаюсь первым. За окном тихо, телефон молчит, а рядом {{p}} спит так спокойно, будто у него сегодня официально отменены все обязанности. У меня есть ровно несколько секунд, чтобы решить, каким будет начало нашего дня.",choices:[
+    c("Разбудить нежно: тихо позвать и предложить кофе","wake_soft",{warmth:7,trust:3}),
+    c("Пусть спит сладко — легонько хлопнуть по попе и уйти готовить завтрак","sleep_more",{warmth:5,chaos:4}),
+    c("Устроить торжественный подъём: шторы, музыка и объявление «ПОДЪЁМ!»","wake_loud",{chaos:12,warmth:-2})
+  ]},
+  wake_soft:{chapter:"ГЛАВА 1 • УТРО",time:"07:18",location:"СПАЛЬНЯ",art:"bedroom",title:"Кофейные переговоры",text:"{{p}} открывает один глаз, смотрит на меня и очень серьёзно спрашивает: «Кофе уже существует или это пока обещания?» Судя по интонации, от ответа зависит международная обстановка в квартире.",choices:[
+    c("Сказать: «Пять минут — и будет лучший кофе твоей жизни»","cuddle",{warmth:6,trust:4}),
+    c("Принести кружку прямо в кровать","coffee_bed",{warmth:9,trust:5}),
+    c("Ответить: «Сначала обнимашки, потом кофе»","cuddle",{warmth:8,chaos:2})
+  ]},
+  sleep_more:{chapter:"ГЛАВА 1 • УТРО",time:"07:23",location:"КУХНЯ",art:"kitchen",title:"Операция «Завтрак»",text:"Я тихо выбираюсь на кухню. Через пару минут квартира уже пахнет кофе. Из спальни пока ни звука. Это редкий шанс приготовить что-нибудь человеческое до того, как {{p}} проснётся и начнёт давать советы.",choices:[
+    c("Испечь панкейки и сделать всё красиво","pancakes",{warmth:8,trust:2}),
+    c("Яичница, тосты, кофе — быстро и надёжно","eggs",{trust:5}),
+    c("Заказать завтрак и сделать вид, что я всё приготовил","delivery_breakfast",{chaos:7,trust:-2})
+  ]},
+  wake_loud:{chapter:"ГЛАВА 1 • УТРО",time:"07:15",location:"СПАЛЬНЯ",art:"bedroom",title:"Ошибка была допущена",text:"Музыка играет ровно три секунды. Потом в меня летит подушка. {{p}} садится на кровати с выражением человека, которому только что объявили войну.",choices:[
+    c("Принять вызов и начать подушечную битву","pillow_war",{chaos:15,warmth:3}),
+    c("Сразу капитулировать и обещать кофе","coffee_bed",{trust:4,warmth:3}),
+    c("Сказать, что это была проверка системы оповещения","pillow_war",{chaos:10,trust:-2})
+  ]},
+  cuddle:{chapter:"ГЛАВА 1 • УТРО",time:"07:24",location:"СПАЛЬНЯ",art:"bedroom",title:"Пять минут превратились в двадцать",text:"Мы договариваемся полежать ещё пять минут. Разумеется, проходит почти двадцать. {{p}} смеётся, что наш главный совместный талант — профессионально откладывать начало дня.",choices:[c("Всё-таки вставать и идти завтракать","breakfast_choice",{warmth:5}),c("Ещё одну минуту. Последнюю. Честно.","breakfast_choice",{warmth:6,chaos:3})]},
+  coffee_bed:{chapter:"ГЛАВА 1 • УТРО",time:"07:27",location:"СПАЛЬНЯ",art:"bedroom",title:"Кофе в кровати",text:"{{p}} принимает кружку двумя руками и на секунду становится абсолютно счастливым. Мы обсуждаем планы на день, но каждый предлагает что-то своё, поэтому список быстро превращается в спор из десяти пунктов.",choices:[c("Сначала завтрак, потом решаем","breakfast_choice",{trust:4}),c("Пусть {{p}} сегодня выбирает первые планы","breakfast_choice",{warmth:4,trust:7})]},
+  pillow_war:{chapter:"ГЛАВА 1 • УТРО",time:"07:29",location:"СПАЛЬНЯ",art:"bedroom",title:"Великая война подушек",text:"Через минуту кровать выглядит так, будто здесь снимали боевик с очень маленьким бюджетом. Я выигрываю одну атаку, {{p}} — две. Мирный договор подписываем после того, как оба начинаем смеяться.",choices:[c("Заключить перемирие объятиями","breakfast_choice",{warmth:8,trust:3}),c("Объявить, что победил я, и быстро убежать на кухню","breakfast_choice",{chaos:8,warmth:2})]},
+  breakfast_choice:{chapter:"ГЛАВА 1 • УТРО",time:"07:41",location:"КУХНЯ",art:"kitchen",title:"Что будет на завтрак?",text:"Мы добираемся до кухни. {{p}} открывает холодильник, долго смотрит внутрь и произносит философское: «Продуктов вроде много, а еды опять нет».",choices:[c("Панкейки. Сегодня живём красиво.","pancakes",{warmth:5}),c("Яичница и тосты — без экспериментов","eggs",{trust:4}),c("Заказать что-нибудь и не пачкать посуду","delivery_breakfast",{chaos:3})]},
+  pancakes:{chapter:"ГЛАВА 1 • УТРО",time:"08:02",location:"КУХНЯ",art:"kitchen",title:"Первый блин почти не комом",text:"Первый панкейк выглядит подозрительно. Второй уже похож на еду. На четвёртом {{p}} начинает руководить процессом так уверенно, будто всю жизнь работал шеф-поваром. В итоге получается неожиданно хорошо.",choices:[c("Сделать самый красивый панкейк для {{p}}","outfit",{warmth:7}),c("Устроить конкурс: кто соберёт самый странный панкейк","outfit",{chaos:6,warmth:3})]},
+  eggs:{chapter:"ГЛАВА 1 • УТРО",time:"07:58",location:"КУХНЯ",art:"kitchen",title:"Надёжный план",text:"Яичница, тосты, сыр, кофе. Без приключений — почти. В какой-то момент {{p}} пытается перевернуть яйцо на сковороде «как в кино». Яйцо совершает короткий полёт и приземляется обратно. Мы оба делаем вид, что именно так и было задумано.",choices:[c("Похвалить мастерство","outfit",{warmth:5,trust:2}),c("Попросить повторить для видео","outfit",{chaos:5})]},
+  delivery_breakfast:{chapter:"ГЛАВА 1 • УТРО",time:"08:11",location:"КУХНЯ",art:"kitchen",title:"Шеф-повар курьерской службы",text:"Заказ приезжает слишком быстро. План «сделать вид, что приготовил сам» разваливается, когда {{p}} замечает пакет. Вместо разоблачения он только смеётся и говорит, что ценит честность хотя бы после появления чека.",choices:[c("Признаться и разделить десерт","outfit",{warmth:4,trust:3}),c("До последнего утверждать, что пакет тоже приготовил я","outfit",{chaos:8,trust:-2})]},
+  outfit:{chapter:"ГЛАВА 1 • УТРО",time:"08:34",location:"ПРИХОЖАЯ",art:"home",title:"Самый сложный выбор утра",text:"Перед выходом возникает главный вопрос: что надеть. {{p}} уже готов и теперь комментирует мои варианты. Я начинаю подозревать, что это развлечение ему нравится больше, чем сам выход из дома.",choices:[c("Довериться совету {{p}}","day_plan",{trust:7,warmth:2}),c("Выбрать самому и спросить только «ну как?»","day_plan",{trust:2}),c("Предложить одеться максимально нелепо обоим","day_plan",{chaos:8,warmth:4})]},
+  day_plan:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:03",location:"У ПОДЪЕЗДА",art:"street",title:"Куда сначала?",text:"Мы наконец выходим. День свободный, погода нормальная, обязательных дел почти нет. Это редкий и опасный набор обстоятельств.",choices:[c("Сначала в уютное кафе","cafe_start",{warmth:3}),c("Заехать в магазин за продуктами на вечер","market_start",{trust:4}),c("Вернуться домой: мы забыли выключить утюг… кажется","stay_home",{chaos:4})]},
+  cafe_start:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:24",location:"КАФЕ",art:"cafe",title:"Столик у окна",text:"В кафе почти пусто. Мы занимаем столик у окна. {{p}} изучает меню с такой серьёзностью, будто от выбора круассана зависит курс валют.",choices:[c("Заказать каждому его любимый напиток","cafe_order",{warmth:6}),c("Заказать два случайных напитка и поменяться","cafe_order",{chaos:4,warmth:3})]},
+  cafe_order:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:37",location:"КАФЕ",art:"cafe",title:"Сердце на стакане",text:"На одном стакане бариста рисует сердечко. {{p}} замечает его раньше меня и очень спокойно спрашивает: «Так. Это ещё что за сюжетная линия?» По лицу видно — он шутит. Почти.",choices:[c("Подвинуть стакан к {{p}}: «Вообще-то это тебе»","cafe_heart",{warmth:9,trust:5}),c("Сделать серьёзное лицо: «У нас появился третий персонаж»","cafe_heart",{chaos:8,warmth:2}),c("Сказать, что самое нормальное сердце сидит напротив","cafe_heart",{warmth:10})]},
+  cafe_heart:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:49",location:"КАФЕ",art:"cafe",title:"План начинает нравиться",text:"Шутка быстро заканчивается. Мы делим выпечку, спорим о музыке и внезапно понимаем, что уже почти час сидим на одном месте. Пора двигаться дальше.",choices:[c("Пойти гулять по центру","city_choice",{warmth:3}),c("Поехать туда, куда первым покажет карта","city_choice",{chaos:5})]},
+  market_start:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:28",location:"СУПЕРМАРКЕТ",art:"market",title:"Список из шести пунктов",text:"Мы заходили только за продуктами на ужин. Через пять минут в тележке уже лежат вещи, которых в списке не было вообще. {{p}} утверждает, что «акционные сырные палочки — это инвестиция».",choices:[c("Строго держаться списка","market_list",{trust:6}),c("Раз уж начали — брать всё смешное и странное","cart_race",{chaos:9})]},
+  market_list:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:42",location:"СУПЕРМАРКЕТ",art:"market",title:"Контроль потерян",text:"Я пытаюсь контролировать покупки, но {{p}} каждый раз незаметно подкладывает в тележку что-то новое. На пятой попытке я сдаюсь.",choices:[c("Устроить проверку тележки","cart_race",{chaos:4,trust:2}),c("Притвориться, что ничего не вижу","cashier",{warmth:3})]},
+  cart_race:{chapter:"ГЛАВА 2 • ГОРОД",time:"09:51",location:"СУПЕРМАРКЕТ",art:"market",title:"Гонки запрещены правилами магазина",text:"Тележка оказывается слишком удобной. Мы договариваемся «только чуть быстрее пройти до следующего ряда». Через секунду это уже почти гонка. Охранник смотрит на нас. Мы мгновенно становимся образцовыми покупателями.",choices:[c("Сделать невинные лица и спокойно идти к кассе","cashier",{trust:2,chaos:4}),c("Шёпотом объявить победителем {{p}}","cashier",{warmth:5})]},
+  cashier:{chapter:"ГЛАВА 2 • ГОРОД",time:"10:06",location:"У МАГАЗИНА",art:"street",title:"Пакет с секретом",text:"На выходе выясняется, что мы всё-таки купили маленький десерт, который каждый собирался спрятать для другого. Сюрприз провалился одновременно у обоих.",choices:[c("Съесть его прямо сейчас на лавочке","city_choice",{warmth:8}),c("Сохранить до вечера","city_choice",{trust:5})]},
+  stay_home:{chapter:"ГЛАВА 2 • ДОМА",time:"09:17",location:"КВАРТИРА",art:"home",title:"Утюг был выключен",text:"Разумеется, утюг выключен. Но раз уж мы вернулись, {{p}} предлагает быстро навести порядок. Слово «быстро» звучит подозрительно.",choices:[c("Включить музыку и убираться вместе","cleaning",{trust:5}),c("Сесть на пять минут — и случайно начать смотреть смешные видео","dance_break",{chaos:6})]},
+  cleaning:{chapter:"ГЛАВА 2 • ДОМА",time:"09:39",location:"КВАРТИРА",art:"home",title:"Уборка превращается в концерт",text:"Первые десять минут мы действительно убираемся. Потом в колонке включается песня, которую оба знаем, и швабра внезапно становится микрофоном.",choices:[c("Продолжить концерт","dance_break",{warmth:6,chaos:7}),c("Вернуться к уборке и закончить дело","neighbor",{trust:7})]},
+  dance_break:{chapter:"ГЛАВА 2 • ДОМА",time:"09:47",location:"ГОСТИНАЯ",art:"home",title:"Танцы без свидетелей",text:"Это тот самый танец, который нельзя показывать людям. {{p}} смеётся настолько, что садится на диван. Я понимаю: день уже удался хотя бы наполовину.",choices:[c("Снять короткое видео только для нас","neighbor",{warmth:5,trust:3}),c("Объявить второй раунд","neighbor",{chaos:7})]},
+  neighbor:{chapter:"ГЛАВА 2 • ДОМА",time:"10:02",location:"ПРИХОЖАЯ",art:"home",title:"Звонок в дверь",text:"Звонит сосед. На секунду мы оба думаем, что концерт был слишком громким. Оказывается, он просто перепутал этаж с доставкой. Мы выдыхаем и решаем всё-таки выбраться в город.",choices:[c("Поехать куда глаза глядят","city_choice",{chaos:3}),c("Сначала нормально придумать маршрут","city_choice",{trust:4})]},
+  city_choice:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:28",location:"ЦЕНТР",art:"city",title:"Три идеи одновременно",text:"Мы оказываемся в центре. Слева игровые автоматы, справа кинотеатр, впереди большой парк. {{p}} говорит, что решение должен принять тот, кто утром меньше вредничал. Мы оба считаем, что это были не мы.",choices:[c("Игровые автоматы — устроим соревнование","arcade",{chaos:6}),c("Кино — два часа тишины и попкорна","cinema",{warmth:3}),c("Парк — гулять без плана","park",{warmth:4,trust:2})]},
+  arcade:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:41",location:"АРКАДА",art:"arcade",title:"Двадцать жетонов спустя",text:"Мы начинаем с безобидной игры на реакцию, а через десять минут уже ведём официальный счёт побед. {{p}} утверждает, что один автомат «явно подыгрывает мне».",choices:[c("Пойти к автомату с игрушками","claw",{warmth:3}),c("Сразу на гонки — всё решит трасса","racing",{chaos:5})]},
+  claw:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:55",location:"АРКАДА",art:"arcade",title:"Игрушка за цену самолёта",text:"В автомате лежит маленькая смешная игрушка. После нескольких попыток становится понятно: дешевле было купить её отдельно. Но теперь это вопрос принципа.",choices:[c("Играть, пока не достану её для {{p}}","racing",{warmth:8,chaos:3}),c("Остановиться и купить похожую в магазине","racing",{trust:5})]},
+  racing:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"11:14",location:"АРКАДА",art:"arcade",title:"Финальная гонка",text:"Последняя гонка получается неожиданно напряжённой. Победитель определяется буквально на финише.",choices:[c("Если выиграл — торжественно уступить победу {{p}}","lunch_plan",{warmth:6}),c("Никакой жалости. Победа есть победа.","lunch_plan",{chaos:6,trust:1})]},
+  cinema:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:46",location:"КИНОТЕАТР",art:"cinema",title:"Выбор фильма занимает дольше фильма",text:"Мы стоим перед афишами. Я хочу одно, {{p}} — другое. Компромисс внезапно находится в третьем фильме, про который никто из нас ничего не знает.",choices:[c("Берём неизвестный фильм и рискуем","popcorn",{chaos:4,trust:3}),c("Уступить выбор {{p}}","popcorn",{warmth:5,trust:5})]},
+  popcorn:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"11:03",location:"КИНОЗАЛ",art:"cinema",title:"Попкорн делится нечестно",text:"До начала фильма пять минут. {{p}} уже съел подозрительно большую часть попкорна и утверждает, что это была «проверка качества».",choices:[c("Отобрать ведро и поделить пополам","after_movie",{trust:3,chaos:2}),c("Подвинуть попкорн ближе к {{p}}","after_movie",{warmth:5})]},
+  after_movie:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"12:52",location:"У КИНОТЕАТРА",art:"city",title:"Фильм был странный",text:"На выходе мы десять минут спорим, что вообще хотел сказать режиссёр. В итоге приходим к выводу, что лучшей частью был наш комментарий шёпотом на последних титрах.",choices:[c("Пора поесть","lunch_plan",{warmth:2}),c("Ещё немного пройтись перед обедом","lunch_plan",{trust:2})]},
+  park:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:43",location:"ПАРК",art:"park",title:"День без маршрута",text:"В парке спокойно. Мы идём куда хочется, обсуждаем всё подряд и специально не смотрим на время. У фонтана играет уличный музыкант.",choices:[c("Остановиться послушать","musician",{warmth:5}),c("Пойти к фотобудке","photo_booth",{chaos:3})]},
+  musician:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"10:58",location:"ПАРК",art:"park",title:"Одна песня",text:"Музыкант играет знакомую мелодию. {{p}} тихо подпевает. Я сначала делаю вид, что не слышу, а потом тоже подключаюсь.",choices:[c("Дослушать до конца и оставить монету","photo_booth",{warmth:6,trust:2}),c("Потащить {{p}} дальше, пока нас не услышали","photo_booth",{chaos:4})]},
+  photo_booth:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"11:12",location:"ФОТОБУДКА",art:"park",title:"Четыре кадра",text:"В фотобудке даётся четыре снимка. На первом мы пытаемся выглядеть нормально. На втором уже смеёмся. Третий невозможно показывать никому. Четвёртый получается неожиданно хорошим.",choices:[c("Спрятать последний снимок в кошелёк","dog_scene",{warmth:9}),c("Отдать лучший снимок {{p}}","dog_scene",{warmth:6,trust:4})]},
+  dog_scene:{chapter:"ГЛАВА 3 • ДЕНЬ",time:"11:27",location:"ПАРК",art:"park",title:"Нас выбрала собака",text:"К нам подбегает огромная дружелюбная собака с палкой. Хозяин кричит издалека, что она просто хочет играть. Через минуту {{p}} уже бегает с ней так, будто они знакомы годами.",choices:[c("Присоединиться","lunch_plan",{warmth:5,chaos:4}),c("Снимать эту сцену на телефон","lunch_plan",{warmth:4})]},
+  lunch_plan:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"13:18",location:"ГОРОД",art:"city",title:"Главный вопрос: где еда?",text:"К этому моменту мы оба понимаем, что завтрак был очень давно. {{p}} предлагает три варианта, и каждый звучит нормально.",choices:[c("Домой и готовить вместе","cook_lunch",{trust:4}),c("Заказать еду домой и ничего не делать","wrong_order",{chaos:2}),c("Взять еду с собой и устроить маленький пикник","picnic",{warmth:5})]},
+  cook_lunch:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"13:46",location:"КУХНЯ",art:"kitchen",title:"Паста на двоих",text:"Мы решаем приготовить пасту. Я отвечаю за одно, {{p}} — за другое. Через десять минут мы оба почему-то отвечаем за соус и никто — за макароны.",choices:[c("Спасти ситуацию спокойно","sauce",{trust:6}),c("Сделать вид, что так и задумано","sauce",{chaos:5})]},
+  sauce:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"14:08",location:"КУХНЯ",art:"kitchen",title:"Соус живёт своей жизнью",text:"Соус оказывается слишком густым. Потом слишком жидким. Потом внезапно нормальным. {{p}} пробует и говорит: «Слушай, это реально вкусно». Это звучит как маленькая победа.",choices:[c("Красиво накрыть стол","afternoon_turn",{warmth:6}),c("Есть прямо со сковородки, потому что мы устали","afternoon_turn",{chaos:4,warmth:3})]},
+  wrong_order:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"13:55",location:"ДОМА",art:"home",title:"Нам привезли не то",text:"Курьер уезжает, мы открываем пакет — и понимаем, что заказ вообще чужой. Внутри что-то совершенно неожиданное, но пахнет отлично.",choices:[c("Позвонить и всё исправить","afternoon_turn",{trust:8}),c("Подождать звонка и пока попробовать картошку","afternoon_turn",{chaos:6,trust:-1})]},
+  picnic:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"13:49",location:"НАБЕРЕЖНАЯ",art:"park",title:"Пикник почти идеален",text:"Мы находим место у воды. Всё спокойно ровно до того момента, когда начинает моросить дождь. Сначала чуть-чуть. Потом уже совсем не чуть-чуть.",choices:[c("Бежать под ближайший навес","rain_shelter",{chaos:5}),c("Остаться ещё минуту и доесть под дождём","rain_shelter",{warmth:7,chaos:5})]},
+  rain_shelter:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"14:05",location:"ПОД НАВЕСОМ",art:"rain",title:"Дождь всё-таки победил",text:"Мы стоим под небольшим навесом, слегка мокрые и очень довольные собой. {{p}} смотрит на меня и говорит, что именно такие глупые моменты почему-то запоминаются лучше всего.",choices:[c("Согласиться и обнять {{p}}","afternoon_turn",{warmth:10,trust:3}),c("Ответить: «Потому что нормальные мы не умеем»","afternoon_turn",{chaos:6,warmth:4})]},
+  afternoon_turn:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"15:02",location:"ДОМА",art:"home",title:"Вторая половина дня",text:"После еды появляется приятная лень. До вечера ещё далеко. Можно сделать что-то полезное, что-то милое или вообще ничего.",choices:[c("Сходить выбрать одну вещь для дома","furniture",{trust:4}),c("Тайком придумать маленький подарок {{p}}","gift_shop",{warmth:5}),c("Устроить двадцатиминутный сон на диване","sofa_nap",{warmth:3})]},
+  furniture:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"15:31",location:"МАГАЗИН ДЛЯ ДОМА",art:"market",title:"Мы пришли за одной вещью",text:"Мы пришли за одной мелочью. Через двадцать минут сидим на огромном диване и обсуждаем, можно ли считать его «инвестицией в отношения».",choices:[c("Оставить диван и купить только нужное","evening_plan",{trust:7}),c("Продолжить тестировать всё подряд","evening_plan",{chaos:7,warmth:3})]},
+  gift_shop:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"15:34",location:"НЕБОЛЬШОЙ МАГАЗИН",art:"shop",title:"Секретная покупка",text:"Пока {{p}} отвлекается, я замечаю маленькую вещь, которая очень ему подходит. Ничего дорогого — просто смешная мелочь с нашим внутренним приколом.",choices:[c("Купить и вручить сразу","gift_reveal",{warmth:8}),c("Спрятать до вечера","gift_reveal",{warmth:5,trust:3})]},
+  gift_reveal:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"15:51",location:"УЛИЦА",art:"street",title:"Маленький подарок",text:"{{p}} сначала не понимает, зачем я это купил. Потом замечает отсылку и улыбается. «Ладно, это слишком хорошо», — признаёт он.",choices:[c("Сказать, что увидел и сразу подумал о нём","evening_plan",{warmth:10}),c("Ответить: «Не привыкай»","evening_plan",{chaos:3,warmth:5})]},
+  sofa_nap:{chapter:"ГЛАВА 4 • ПОСЛЕ ОБЕДА",time:"15:20",location:"ГОСТИНАЯ",art:"home",title:"Двадцать минут. Конечно.",text:"Мы ложимся на диван на двадцать минут. Я просыпаюсь почти через час. {{p}} всё ещё рядом, укрыв нас одним пледом.",choices:[c("Тихо лежать ещё пару минут","evening_plan",{warmth:8}),c("Разбудить {{p}} словами «мы опять всё проспали»","evening_plan",{chaos:4})]},
+  evening_plan:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"17:42",location:"ДОМА",art:"sunset",title:"Вечер ещё наш",text:"За окном уже меняется свет. День получился длинным, но заканчивать его пока не хочется. {{p}} спрашивает: «Ну что, какой финальный план?»",choices:[c("Пойти в небольшой ресторан","restaurant",{warmth:4}),c("Взять напитки и подняться на красивую смотровую площадку","rooftop",{warmth:6}),c("Остаться дома и приготовить ужин вместе","home_dinner",{trust:5})]},
+  restaurant:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"18:24",location:"РЕСТОРАН",art:"restaurant",title:"Столик в углу",text:"Место оказывается тихим и уютным. Мы садимся в дальнем углу. После целого дня шуток разговор внезапно становится спокойнее.",choices:[c("Вспомнить лучший момент дня","dessert",{warmth:8}),c("Начать спор, кто сегодня больше косячил","dessert",{chaos:5})]},
+  dessert:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"19:11",location:"РЕСТОРАН",art:"restaurant",title:"Один десерт на двоих",text:"Мы заказываем один десерт и две ложки. Последний кусок остаётся ровно посередине. Оба замечаем это одновременно.",choices:[c("Отдать последний кусок {{p}}","tension",{warmth:7}),c("Разделить его пополам буквально","tension",{trust:5}),c("Съесть первым и пережить последствия","tension",{chaos:8,warmth:-1})]},
+  rooftop:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"18:18",location:"СМОТРОВАЯ",art:"rooftop",title:"Город снизу",text:"Мы поднимаемся туда, где видно почти весь город. Ветер сильнее, чем ожидалось. {{p}} подходит ближе, чтобы не перекрикивать его.",choices:[c("Просто молча смотреть на город","sunset_photo",{warmth:9,trust:4}),c("Устроить десятиминутнюю фотосессию","sunset_photo",{chaos:5,warmth:3})]},
+  sunset_photo:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"18:47",location:"СМОТРОВАЯ",art:"rooftop",title:"Фотография дня",text:"Один снимок получается особенно хорошим — не постановочным. Мы оба смотрим на него дольше, чем на остальные.",choices:[c("Поставить его на заставку","tension",{warmth:10}),c("Отправить {{p}} без комментариев","tension",{warmth:6,trust:3})]},
+  home_dinner:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"18:03",location:"КУХНЯ",art:"kitchen",title:"Ужин без рецепта",text:"Мы решаем готовить из того, что есть. Получается странная смесь импровизации и доверия. {{p}} отвечает за вкус, я — за то, чтобы кухня пережила процесс.",choices:[c("Готовить медленно и вместе","candle_dinner",{trust:7,warmth:4}),c("Устроить соревнование: кто приготовит свою часть лучше","candle_dinner",{chaos:7})]},
+  candle_dinner:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"19:02",location:"ГОСТИНАЯ",art:"home-night",title:"Свет можно сделать потише",text:"Ужин готов. Мы выключаем верхний свет и оставляем только маленькую лампу. Получается неожиданно уютно — настолько, что даже никто не включает телевизор.",choices:[c("Поговорить о том, что сегодня понравилось больше всего","tension",{warmth:8,trust:6}),c("Включить музыку и снова танцевать на кухне","tension",{chaos:6,warmth:5})]},
+  tension:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"20:11",location:"ВЕЧЕР",art:"night",title:"Одна маленькая пауза",text:"В какой-то момент разговор цепляется за мелочь. Не настоящая ссора — просто оба устали и один не так понял другого. Можно легко разрулить. А можно сделать вид, что ничего не произошло.",choices:[c("Сказать прямо: «Давай без ерунды, я не хочу портить день»","reconcile",{trust:12,warmth:5}),c("Разрядить всё нашей самой глупой шуткой","laugh_it_off",{chaos:6,warmth:6}),c("Замолчать и подождать, пока само пройдёт","cold_walk",{trust:-10,warmth:-5})]},
+  reconcile:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"20:20",location:"ВЕЧЕР",art:"night",title:"Две минуты честности",text:"Мы нормально проговариваем, что произошло. Оказывается, всё действительно было мелочью. {{p}} кивает: «Вот и всё. Можно было сразу так». Напряжение исчезает почти мгновенно.",choices:[c("Обнять {{p}} и идти дальше","night_choice",{warmth:10,trust:6})]},
+  laugh_it_off:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"20:18",location:"ВЕЧЕР",art:"night",title:"Смеяться проще",text:"Шутка срабатывает. Сначала {{p}} пытается сохранять серьёзное лицо, потом сдаётся. Через минуту мы уже не помним, из-за чего вообще напряглись.",choices:[c("Продолжить вечер","night_choice",{warmth:7,trust:2})]},
+  cold_walk:{chapter:"ГЛАВА 5 • ВЕЧЕР",time:"20:31",location:"УЛИЦА",art:"night-street",title:"Молчание тоже что-то говорит",text:"Мы какое-то время идём молча. Потом {{p}} первым говорит: «Ну и долго мы будем изображать двух идиотов?» Формулировка настолько точная, что я не выдерживаю и улыбаюсь.",choices:[c("Остановиться и нормально поговорить","night_choice",{trust:9,warmth:5}),c("Сказать: «Минуты три ещё планировал»","night_choice",{chaos:4,warmth:3})]},
+  night_choice:{chapter:"ГЛАВА 6 • НОЧЬ",time:"21:02",location:"ГОРОД",art:"night-city",title:"Последняя глава",text:"До сна ещё есть время. День уже ощущается как маленькое отдельное приключение. Но можно добавить ещё один эпизод.",choices:[c("Ночная прогулка без маршрута","night_walk",{warmth:5}),c("Домой, фильм и один плед на двоих","movie_home",{warmth:6}),c("Караоке. Закончить день максимально громко","karaoke",{chaos:10})]},
+  night_walk:{chapter:"ГЛАВА 6 • НОЧЬ",time:"21:23",location:"НАБЕРЕЖНАЯ",art:"night-street",title:"Город стал тише",text:"Ночью всё выглядит иначе. Мы идём медленно, иногда касаясь плечами. Разговор скачет от серьёзных вещей к совершенно бессмысленным.",choices:[c("Сесть на лавку у воды","final_decision",{warmth:8,trust:5}),c("Идти, пока не устанем","final_decision",{warmth:5,chaos:2})]},
+  movie_home:{chapter:"ГЛАВА 6 • НОЧЬ",time:"21:28",location:"ГОСТИНАЯ",art:"home-night",title:"Один плед",text:"Мы выбираем фильм, который оба уже видели, потому что смотреть внимательно никто не собирается. {{p}} забирает большую часть пледа. Я молча перетягиваю половину обратно.",choices:[c("Устроиться ближе и смотреть дальше","final_decision",{warmth:10}),c("Начать тихую войну за плед","final_decision",{chaos:5,warmth:5})]},
+  karaoke:{chapter:"ГЛАВА 6 • НОЧЬ",time:"21:31",location:"КАРАОКЕ",art:"karaoke",title:"Дуэт, который никто не просил",text:"Мы берём песню, которую оба знаем. Первый куплет ещё звучит прилично. К припеву исчезают и стыд, и чувство меры. Главное — {{p}} смеётся и поёт ещё громче.",choices:[c("Спеть финальный припев вместе","final_decision",{warmth:7,chaos:8}),c("Посвятить следующую песню {{p}}","final_decision",{warmth:9,trust:3})]},
+  final_decision:{chapter:"ГЛАВА 6 • НОЧЬ",time:"23:07",location:"ДОМА",art:"home-night",title:"Перед сном",text:"Мы наконец дома. Свет выключен почти везде. {{p}} останавливается рядом и спрашивает: «Ну что, нормальный был день?» Я уже знаю, что отвечу.",choices:[
+    c("«Если честно — один из лучших»","__END__",{warmth:8,trust:5},"best"),
+    c("«Завтра повторим, только ещё лучше»","__END__",{chaos:3,trust:6},"tomorrow"),
+    c("Ничего не говорить. Просто крепко обнять.","__END__",{warmth:10,trust:4},"hug")
+  ]}
+};
+
+function c(text,next,delta={},finalChoice=null){return {text,next,delta,finalChoice};}
 
 boot();
-
-async function boot(){
-  if(!tg?.initData)return fail("Открой FIT Poker через Telegram.");
-  tg.ready();tg.expand();state.initData=tg.initData;bindSettings();bindGlobal();initPoker();initBlackjack();initSocial();initCasino();initSafeSlots();initPokerEnhancements();initLuxuryUI();initClubAgreement();initMaxWinUI();
-  registerView("tables",loadTables);registerView("tournaments",loadTournaments);registerView("rating",()=>loadRating("balance"));registerView("friends",loadFriends);registerView("rewards",loadRewards);registerView("profile",loadProfile);registerView("notifications",loadNotifications);registerView("casino",loadCasino);
-  try{await refreshBootstrap();await Promise.allSettled([loadFeed(),loadNotifications()]);routeFromHash();$("app").classList.remove("hidden");setTimeout(()=>$("splash").classList.add("hide"),450);setTimeout(startRescueIfNeeded,650);}catch(error){fail(`Ошибка запуска: ${error.message}`);}
+function boot(){
+  try{tg?.ready();tg?.expand();tg?.setHeaderColor?.("#0c0c12");tg?.setBackgroundColor?.("#0c0c12");}catch{}
+  $("coverArt").innerHTML=artSvg("cover");
+  document.querySelectorAll("[data-role]").forEach(b=>b.addEventListener("click",()=>startNew(b.dataset.role)));
+  $("continueButton").onclick=resume;
+  $("homeButton").onclick=showStart;
+  $("restartButton").onclick=()=>{if(confirm("Начать историю заново?"))startNew(state.role||"kozyr");};
+  $("replayButton").onclick=()=>showStart(true);
+  if(loadSave())$("continueButton").classList.remove("hidden");
 }
 
-function bindGlobal(){
-  document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>{if(state.currentView==="table"&&b.dataset.nav!=="table"&&state.ws?.readyState===WebSocket.OPEN){if(!confirm("Выйти из игрового стола?"))return;closePokerSocket();}nav(b.dataset.nav);}));
-  $("notificationButton").onclick=()=>nav("notifications");$("modalClose").onclick=closeModal;$("modal").onclick=e=>{if(e.target===$("modal"))closeModal();};
-  $("adminLink").onclick=()=>location.href="/admin.html";window.addEventListener("hashchange",routeFromHash);window.addEventListener("fit-resume-table",resumeActiveTable);
+function startNew(role){
+  state={role,node:"wake",warmth:50,trust:50,chaos:10,path:[],finalChoice:null};
+  save();showGame();render();
 }
-function fail(text){$("splash").innerHTML=`<div class="empty splash-error">${String(text)}</div>`;}
+function resume(){if(!loadSave())return;showGame();render();}
+function showStart(clear=false){
+  if(clear){localStorage.removeItem(SAVE_KEY);state={role:null,node:"wake",warmth:50,trust:50,chaos:10,path:[],finalChoice:null};$("continueButton").classList.add("hidden");}
+  $("startScreen").classList.remove("hidden");$("gameScreen").classList.add("hidden");$("endingScreen").classList.add("hidden");
+}
+function showGame(){$("startScreen").classList.add("hidden");$("endingScreen").classList.add("hidden");$("gameScreen").classList.remove("hidden");}
+
+function render(){
+  const node=scenes[state.node];if(!node)return endGame();
+  const me=roles[state.role],other=roles[state.role==="kozyr"?"kharlamov":"kozyr"];
+  $("chapterLabel").textContent=node.chapter;$("timeLabel").textContent=node.time;$("locationLabel").textContent=node.location;
+  $("sceneTitle").textContent=node.title;$("sceneText").innerHTML=`<p>${format(node.text)}</p>`;
+  $("sceneArt").innerHTML=artSvg(node.art,node.title);
+  $("sceneCounter").textContent=`ШАГ ${Math.max(1,state.path.length+1)}`;
+  $("progressBar").style.width=`${Math.min(100,Math.max(3,(state.path.length+1)/TOTAL_PATH_STEPS*100))}%`;
+  $("playerName").textContent=me.short;$("partnerName").textContent=other.short;
+  setAvatar($("playerAvatar"),me);setAvatar($("partnerAvatar"),other);updateMeters();
+  const box=$("choices");box.innerHTML="";
+  node.choices.forEach((choice,i)=>{
+    const b=document.createElement("button");b.className="choice";
+    b.innerHTML=`<i class="choice-index">${String(i+1).padStart(2,"0")}</i><span>${format(choice.text)}</span><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>`;
+    b.onclick=()=>choose(choice);box.appendChild(b);
+  });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function choose(choice){
+  const d=choice.delta||{};state.warmth=clamp(state.warmth+(d.warmth||0));state.trust=clamp(state.trust+(d.trust||0));state.chaos=clamp(state.chaos+(d.chaos||0));
+  state.path.push({node:state.node,choice:choice.text});if(choice.finalChoice)state.finalChoice=choice.finalChoice;
+  haptic();
+  if(choice.next==="__END__"){save();return endGame();}
+  state.node=choice.next;save();render();
+}
+
+function endGame(){
+  const ending=pickEnding();localStorage.removeItem(SAVE_KEY);
+  $("startScreen").classList.add("hidden");$("gameScreen").classList.add("hidden");$("endingScreen").classList.remove("hidden");
+  $("endingTitle").textContent=ending.title;$("endingText").textContent=format(ending.text);
+  $("endingArt").innerHTML=artSvg(ending.art||"ending",ending.title);
+  $("endingStats").innerHTML=`<div><small>ТЕПЛО</small><b>${state.warmth}</b></div><div><small>ДОВЕРИЕ</small><b>${state.trust}</b></div><div><small>ХАОС</small><b>${state.chaos}</b></div>`;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function pickEnding(){
+  if(state.chaos>=82&&state.warmth>=65)return {title:"ЛЕГЕНДЫ ХАОСА",art:"ending-chaos",text:"Вы планировали обычный день, а получили подушки, странные покупки, соревнования, танцы и слишком много внутренних шуток. {{p}} в конце признаёт: скучно с тобой точно никогда не будет. На завтра вы договариваетесь ничего не планировать — это уже проверенный рецепт приключений."};
+  if(state.trust>=86&&state.warmth>=78)return {title:"КОМАНДА ИЗ ДВУХ",art:"ending-trust",text:"За день было всё: выборы, мелкие косяки, смешные моменты и один почти-спор. Но каждый раз вы оказывались на одной стороне. Перед сном {{p}} говорит, что самое приятное — даже не то, куда вы ходили, а то, как легко было весь день быть вместе."};
+  if(state.warmth>=88)return {title:"ТОТ САМЫЙ ДЕНЬ",art:"ending-love",text:"Ничего грандиозного не произошло — и именно поэтому день оказался таким хорошим. Кофе, прогулки, еда, смех, случайные прикосновения и разговоры. {{p}} ещё долго не засыпает и вспоминает самые смешные моменты. Фотография дня остаётся сохранённой отдельно."};
+  if(state.trust<45)return {title:"ДЕНЬ С ПЕРЕЗАГРУЗКОЙ",art:"ending-calm",text:"Где-то вы не поняли друг друга, где-то слишком устали, но к ночи всё равно сумели остановиться и поговорить. День заканчивается не идеальной картинкой, а нормальным человеческим примирением. И это оказывается важнее."};
+  if(state.chaos>=60)return {title:"НИ МИНУТЫ ПО ПЛАНУ",art:"ending-chaos",text:"Почти каждый план сегодня развалился или превратился во что-то другое. И всё же {{p}} смеётся: «По-моему, это был отличный день». Вы соглашаетесь, что в следующий раз составите чёткий план — и оба понимаете, что соблюдать его всё равно не будете."};
+  if(state.finalChoice==="tomorrow")return {title:"ПРОДОЛЖЕНИЕ ЗАВТРА",art:"ending-city",text:"День заканчивается обещанием нового. Вы уже лежите в кровати и всё ещё спорите, куда пойдёте завтра. {{p}} предлагает три варианта, ты — ещё четыре. Похоже, следующая история начнётся очень скоро."};
+  return {title:"ТИХИЙ ХОРОШИЙ ФИНАЛ",art:"ending",text:"Вечер заканчивается спокойно. Без громких слов и великих обещаний. Просто вы оба понимаете, что день был хорошим именно потому, что провели его рядом. {{p}} желает спокойной ночи, и квартира наконец становится тихой."};
+}
+
+function updateMeters(){setMeter("warmth",state.warmth);setMeter("trust",state.trust);setMeter("chaos",state.chaos);}
+function setMeter(id,v){$(id+"Bar").style.width=`${v}%`;$(id+"Value").textContent=v;}
+function setAvatar(el,role){el.textContent=role.letter;el.className=`mini-avatar ${role.className}`;}
+function clamp(v){return Math.max(0,Math.min(100,Math.round(v)));}
+function format(text){const other=roles[state.role==="kozyr"?"kharlamov":"kozyr"]||roles.kharlamov;const me=roles[state.role]||roles.kozyr;return String(text||"").replaceAll("{{p}}",other.short).replaceAll("{{me}}",me.short);}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{}}
+function loadSave(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||"null");if(!s?.role||!scenes[s.node])return false;state={...state,...s};return true;}catch{return false;}}
+function haptic(){try{tg?.HapticFeedback?.impactOccurred?.("light");}catch{}}
+function notify(text){clearTimeout(toastTimer);$("toast").textContent=text;$("toast").classList.add("show");toastTimer=setTimeout(()=>$("toast").classList.remove("show"),1800);}
+
+function artSvg(kind="home",label="ДВА АЛЕКСЕЯ"){
+  const palettes={
+    cover:["#3d294f","#b94b73","#17131f"],bedroom:["#27223a","#6e5d8e","#17151f"],kitchen:["#59402b","#d68c5d","#17120e"],home:["#28343b","#6f8a91","#121719"],street:["#244158","#e88f6c","#10161d"],city:["#253b58","#7b66d9","#111522"],cafe:["#4b3529","#c78665","#18110d"],market:["#30493d","#70a981","#101914"],arcade:["#2d1752","#ff4f9b","#10091d"],cinema:["#251d33","#765a9d","#0d0b12"],park:["#244331","#77a86d","#0d1711"],rain:["#263847","#6689a3","#10161c"],shop:["#4a2e42","#c97196","#171017"],sunset:["#512d4e","#ef8c6f","#17101b"],restaurant:["#4d332b","#d69a66","#160f0d"],rooftop:["#28324f","#e16f86","#0c1020"],"home-night":["#22243a","#6d67a5","#0d0e16"],night:["#1e2740","#525b9c","#090c14"],"night-street":["#172a3c","#4a688e","#080d13"],"night-city":["#22254b","#7958c4","#090a16"],karaoke:["#451b4b","#ff5e9f","#120718"],ending:["#3a2845","#d36b88","#100d15"],"ending-love":["#4b273c","#ff7899","#130b10"],"ending-trust":["#253b50","#718bd6","#0b1018"],"ending-chaos":["#42234f","#e85d9a","#120a18"],"ending-calm":["#2d3d43","#7e9ca3","#0b1012"],"ending-city":["#253750","#8a6bd5","#0a0f18"]
+  };
+  const p=palettes[kind]||palettes.home;const seed=[...String(kind+label)].reduce((a,c)=>a+c.charCodeAt(0),0);const moon=seed%2===0;
+  return `<svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeXml(label)}">
+    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${p[0]}"/><stop offset=".6" stop-color="${p[1]}"/><stop offset="1" stop-color="${p[2]}"/></linearGradient><filter id="blur"><feGaussianBlur stdDeviation="28"/></filter></defs>
+    <rect width="800" height="480" fill="url(#bg)"/><circle cx="${moon?680:120}" cy="85" r="70" fill="#fff" opacity=".08" filter="url(#blur)"/>
+    ${environment(kind)}
+    <ellipse cx="400" cy="455" rx="260" ry="24" fill="#000" opacity=".18"/>
+    ${personSvg(292,245,"К","#171820","#30323a",seed%3)}
+    ${personSvg(508,245,"Х","#4d5dd5","#7f8cff",(seed+1)%3)}
+    <rect x="24" y="24" width="220" height="38" rx="19" fill="#090910" opacity=".55"/><text x="44" y="49" fill="#fff" opacity=".85" font-size="14" font-family="Arial" font-weight="700">${escapeXml(String(label).slice(0,28).toUpperCase())}</text>
+  </svg>`;
+}
+function personSvg(x,y,letter,dark,light,pose){const arm=pose===0?"M-44 55 Q-72 88 -54 126 M44 55 Q72 86 56 124":pose===1?"M-44 58 Q-80 34 -72 4 M44 58 Q82 44 90 18":"M-44 58 Q-66 82 -84 70 M44 58 Q66 82 84 70";return `<g transform="translate(${x} ${y})"><circle cy="-54" r="46" fill="#e3b293"/><path d="M-44-59 Q-32-112 8-103 Q50-96 47-49 Q18-72-44-59" fill="${dark}"/><rect x="-58" y="0" width="116" height="154" rx="48" fill="${light}"/><path d="${arm}" fill="none" stroke="#e3b293" stroke-width="24" stroke-linecap="round"/><circle cy="64" r="28" fill="${dark}" opacity=".85"/><text x="0" y="74" text-anchor="middle" fill="#fff" font-size="28" font-family="Arial" font-weight="900">${letter}</text><circle cx="-16" cy="-56" r="3"/><circle cx="16" cy="-56" r="3"/><path d="M-12-34 Q0-25 12-34" fill="none" stroke="#8e5145" stroke-width="3" stroke-linecap="round"/></g>`;}
+function environment(kind){if(kind.includes("bedroom"))return '<rect x="80" y="280" width="640" height="145" rx="40" fill="#11111a" opacity=".45"/><rect x="105" y="250" width="240" height="70" rx="24" fill="#fff" opacity=".08"/><rect x="455" y="250" width="240" height="70" rx="24" fill="#fff" opacity=".08"/>';if(kind.includes("kitchen"))return '<rect x="40" y="330" width="720" height="110" fill="#100b09" opacity=".38"/><rect x="95" y="170" width="190" height="120" rx="14" fill="#fff" opacity=".07"/><circle cx="670" cy="170" r="62" fill="#ffd8a3" opacity=".1"/>';if(kind.includes("cafe")||kind.includes("restaurant"))return '<circle cx="120" cy="135" r="52" fill="#ffd890" opacity=".14"/><circle cx="680" cy="130" r="52" fill="#ffd890" opacity=".1"/><rect x="220" y="355" width="360" height="24" rx="12" fill="#130d0a" opacity=".45"/>';if(kind.includes("market")||kind.includes("shop"))return '<g opacity=".14" fill="#fff"><rect x="55" y="95" width="150" height="230" rx="12"/><rect x="595" y="95" width="150" height="230" rx="12"/><path d="M80 160h100M80 220h100M620 160h100M620 220h100" stroke="#111" stroke-width="6"/></g>';if(kind.includes("park")||kind.includes("rain"))return '<g fill="#0d1b12" opacity=".35"><circle cx="100" cy="225" r="95"/><rect x="92" y="225" width="18" height="175"/><circle cx="700" cy="205" r="110"/><rect x="690" y="205" width="20" height="190"/></g>';if(kind.includes("arcade")||kind.includes("karaoke"))return '<g fill="#fff" opacity=".12"><rect x="50" y="90" width="130" height="220" rx="24"/><rect x="620" y="90" width="130" height="220" rx="24"/><circle cx="115" cy="150" r="28"/><circle cx="685" cy="150" r="28"/></g>';if(kind.includes("cinema"))return '<rect x="85" y="72" width="630" height="210" rx="18" fill="#fff" opacity=".08"/><rect x="120" y="310" width="560" height="16" rx="8" fill="#000" opacity=".25"/>';if(kind.includes("rooftop")||kind.includes("night")||kind.includes("city")||kind.includes("street")||kind.includes("sunset"))return '<g fill="#090c15" opacity=".45"><rect x="0" y="270" width="120" height="180"/><rect x="95" y="220" width="120" height="230"/><rect x="610" y="250" width="90" height="200"/><rect x="685" y="190" width="115" height="260"/></g><g fill="#ffd77d" opacity=".35"><rect x="118" y="250" width="10" height="10"/><rect x="652" y="290" width="10" height="10"/><rect x="720" y="230" width="10" height="10"/></g>';return '<rect x="70" y="320" width="660" height="100" rx="24" fill="#07070c" opacity=".22"/><rect x="90" y="120" width="150" height="120" rx="18" fill="#fff" opacity=".06"/>';}
+function escapeXml(v){return String(v||"").replace(/[<>&"']/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&apos;"})[m]);}
