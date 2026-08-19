@@ -10,10 +10,11 @@
   "betSteps":[1000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000,5000000],
   "symbols":["crown","hourglass","ring","goblet","gem_red","gem_purple","gem_yellow","gem_green","gem_blue","scatter","orb"],
   "scatterSymbol":"scatter",
+  "olympusSymbol":"orb",
   "freeSpins":15,
   "retriggerSpins":5,
   "multiplierValues":[2,3,4,5,6,8,10,12,15,20,25,50,100,250,500],
   "maxWinMultiplier":5000,
   "winThresholds":{"nice":5,"big":15,"mega":50,"epic":100,"max":5000},
-  "clientReelStrip":["gem_blue","gem_green","gem_purple","gem_yellow","gem_red","gem_blue","ring","gem_green","hourglass","gem_purple","goblet","gem_blue","crown","gem_yellow","orb","gem_green","scatter","gem_red","gem_blue","ring","gem_purple","gem_green","hourglass","gem_yellow","goblet"]
+  "clientReelStrip":["gem_blue","gem_green","gem_purple","gem_yellow","gem_red","gem_blue","ring","gem_green","hourglass","gem_purple","goblet","gem_blue","crown","gem_yellow","gem_green","scatter","gem_red","gem_blue","ring","gem_purple","gem_green","hourglass","gem_yellow","goblet"]
 }
