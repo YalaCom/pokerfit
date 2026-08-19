@@ -5,7 +5,7 @@ import {resolve} from "node:path";
 const root=resolve(new URL("..",import.meta.url).pathname);
 const jsFiles=[
   "src/auth.js","src/casino-main.js","src/games/aureus.js",
-  "public/casino-app.js","public/game-ui-fixes.js",
+  "public/casino-app.js",
   "public/game/core/AnimatedNumberCounter.js","public/game/core/AssetManager.js","public/game/core/AudioManager.js","public/game/core/GameEngine.js","public/game/core/GameStateMachine.js","public/game/core/HapticManager.js","public/game/core/ParticleManager.js","public/game/core/ReelEngine.js","public/game/core/WinPresentationManager.js",
   "scripts/deploy.mjs","tests/aureus-engine.test.mjs"
 ];
