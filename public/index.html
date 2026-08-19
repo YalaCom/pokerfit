@@ -26,15 +26,12 @@
         <div><small>PROGRESSIVE</small><h1>GRAND JACKPOT</h1><strong id="jackpotValue">0</strong><p>Банк растёт вместе с игровыми раундами.</p></div>
         <div class="jackpot-rings" aria-hidden="true"><i></i><i></i><i></i></div>
       </article>
-
       <div class="status-grid">
         <button id="dailyCard" class="status-card"><small>DAILY BONUS</small><b id="dailyAmount">250 000</b><span id="dailyStatus">ЗАБРАТЬ</span></button>
         <article class="status-card vip-card"><small id="vipTitle">VIP LEVEL 1</small><b id="vipProgressText">0%</b><div class="vip-track"><i id="vipProgress"></i></div></article>
       </div>
-
       <div class="section-title"><div><small>FEATURED GAME</small><h2>Флагманский слот</h2></div><span class="live-badge">PIXIJS ENGINE</span></div>
       <div id="slotGrid" class="slot-grid"></div>
-
       <div class="section-title" id="classicSection"><div><small>TABLE & INSTANT</small><h2>Обычные игры</h2></div></div>
       <div id="classicGrid" class="classic-grid"></div>
     </section>
@@ -48,7 +45,7 @@
       <div class="game-stage-shell">
         <div id="pixiStage" class="pixi-stage"></div>
         <div id="gameLoader" class="game-loader hidden"><small>LOADING GAME</small><strong id="gameLoadPercent">0%</strong><div><i id="gameLoadBar"></i></div></div>
-        <div class="game-hud"><span id="engineState">IDLE</span><b id="gameResult">READY</b></div>
+        <div class="game-hud"><span id="engineState">READY</span><b id="gameResult">READY</b></div>
       </div>
       <div class="control-deck">
         <div class="bet-control"><button data-bet-down aria-label="Уменьшить ставку">−</button><div><small>BET</small><input id="betInput" type="number" inputmode="numeric" min="1000" max="5000000" value="10000"></div><button data-bet-up aria-label="Увеличить ставку">+</button></div>
@@ -72,6 +69,5 @@
   <div id="modal" class="modal hidden"><div class="modal-sheet"><button id="modalClose" class="modal-close" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div id="modalBody"></div></div></div>
   <div id="bootScreen" class="boot-screen"><div class="boot-logo"><span>FIT</span><b>CASINO</b></div><small id="bootText">INITIALIZING ENGINE</small><div class="boot-track"><i id="bootBar"></i></div><strong id="bootPercent">0%</strong></div>
   <script type="module" src="/casino-app.js"></script>
-  <script src="/game-ui-fixes.js" defer></script>
 </body>
 </html>
