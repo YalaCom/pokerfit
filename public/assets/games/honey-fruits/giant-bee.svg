@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768">
+<defs>
+  <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff07b"/><stop offset=".42" stop-color="#ffc51b"/><stop offset="1" stop-color="#b56b00"/></linearGradient>
+  <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff" stop-opacity=".95"/><stop offset="1" stop-color="#9fe4ff" stop-opacity=".28"/></linearGradient>
+  <radialGradient id="halo"><stop stop-color="#ffe96b" stop-opacity=".65"/><stop offset="1" stop-color="#ffb400" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<ellipse cx="512" cy="410" rx="430" ry="310" fill="url(#halo)"/>
+<g filter="url(#glow)">
+  <ellipse cx="290" cy="310" rx="220" ry="105" transform="rotate(-24 290 310)" fill="url(#wing)" stroke="#fff" stroke-width="12"/>
+  <ellipse cx="734" cy="310" rx="220" ry="105" transform="rotate(24 734 310)" fill="url(#wing)" stroke="#fff" stroke-width="12"/>
+  <ellipse cx="512" cy="445" rx="245" ry="220" fill="#241600" stroke="#ffd44d" stroke-width="18"/>
+  <path d="M300 350h424M275 435h474M302 520h420" stroke="#ffc61e" stroke-width="72"/>
+  <ellipse cx="512" cy="205" rx="160" ry="132" fill="url(#body)" stroke="#6e3d00" stroke-width="18"/>
+  <ellipse cx="455" cy="192" rx="18" ry="24" fill="#16120a"/><ellipse cx="569" cy="192" rx="18" ry="24" fill="#16120a"/>
+  <path d="M455 250c37 36 77 36 114 0" fill="none" stroke="#6f3c00" stroke-width="15" stroke-linecap="round"/>
+  <path d="M445 92c-33-48-71-71-115-68M579 92c33-48 71-71 115-68" fill="none" stroke="#6f3c00" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="324" cy="24" r="24" fill="#ffd74c"/><circle cx="700" cy="24" r="24" fill="#ffd74c"/>
+  <path d="M281 455c-80 42-118 98-122 168M743 455c80 42 118 98 122 168" fill="none" stroke="#4c2b00" stroke-width="22" stroke-linecap="round"/>
+  <path d="M356 575c-72 65-91 116-84 154M668 575c72 65 91 116 84 154" fill="none" stroke="#4c2b00" stroke-width="22" stroke-linecap="round"/>
+  <path d="M509 664l-39 65h84z" fill="#b86a00" stroke="#ffd74c" stroke-width="10"/>
+</g>
+</svg>
