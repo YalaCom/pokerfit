@@ -1,0 +1,1 @@
+Binary WebP files are committed through Git blobs; text placeholders are not used by production.
