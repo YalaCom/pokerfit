@@ -1,0 +1,1 @@
+Generated mobile slot backgrounds (9:16 WebP) for FIT Casino.
