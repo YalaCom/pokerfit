@@ -1,0 +1,17 @@
+{
+  "id": "kozyr",
+  "name": "KOZYR",
+  "controller": "KOZYR",
+  "reels": 6,
+  "rows": 5,
+  "mechanic": "CLUSTER 5+ + INK SPLASH + PERMANENT TATTOO WILDS",
+  "feature": "BLACK INK FREE SPINS",
+  "maxWin": 10000,
+  "maxWinMultiplier": 10000,
+  "wildSymbol": "ink_wild",
+  "scatterSymbol": "crown_scatter",
+  "symbols": ["doberman","tattoo_face","cash_bag","cash_stack","skull_ring","black_rose","spade","chain","diamond","watch","ink_wild","crown_scatter"],
+  "symbolWeights": {"doberman":4,"tattoo_face":5,"cash_bag":7,"cash_stack":9,"skull_ring":11,"black_rose":13,"spade":16,"chain":18,"diamond":21,"watch":24,"ink_wild":1,"crown_scatter":3},
+  "audioTheme": "neon",
+  "winThresholds": {"return":1,"win":2,"big":15,"mega":50,"epic":150,"max":10000}
+}
