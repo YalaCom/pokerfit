@@ -1,3 +1,3 @@
-FIT Casino feature-rich bonus boost release
-2026-08-20 12:30 +03:00
-RELEASE: PADAPLELOV now forces GameEngineSignature so NIGHT TAP / BARREL BLAST / FOAM controller is always used / purchased PADAPLELOV bonus must contain real bonus frames or fails loudly instead of silently spinning wrong / transparent one-shot tuning no longer multiplies payout / approved tuning is consumed only by the next FEATURE BUY in that slot / boosted FEATURE BUY generates multiple native bonus candidates and selects by special-feature density only: more scatters/retriggers/wilds/bombs/olympus reels/sticky hounds/ink splashes/barrels/gold kegs / payout itself is never multiplied by the tuning layer / Telegram request card now explains FEATURE BOOST mode and keeps approve/reject inline buttons / old slot mechanics remain unchanged when no boost is active
+FIT Casino Padaplelov bonus HUD hotfix
+2026-08-20 12:49 +03:00
+RELEASE: fix PADAPLELOV NIGHT TAP runtime crash on iOS Telegram caused by undeclared bg variable in bonus HUD creation / declare HUD background with const before adding it to Pixi container / no slot math, boost behavior, paylines, bonus rules or other games changed
