@@ -1,0 +1,17 @@
+{
+  "id": "padaplelov",
+  "name": "PADAPLELOV",
+  "controller": "PADAPLELOV",
+  "reels": 5,
+  "rows": 5,
+  "mechanic": "20 LINES + BARREL BLAST + FOAM MULTIPLIER",
+  "feature": "NIGHT TAP FREE SPINS",
+  "maxWin": 8000,
+  "maxWinMultiplier": 8000,
+  "wildSymbol": "beer_wild",
+  "scatterSymbol": "tap_scatter",
+  "symbols": ["beer_mug","money_bag","cash_stack","beer_bottle","pretzel","sausage","hop","coin","beer_barrel","gold_keg","beer_wild","tap_scatter"],
+  "symbolWeights": {"beer_mug":8,"money_bag":6,"cash_stack":8,"beer_bottle":11,"pretzel":14,"sausage":16,"hop":18,"coin":22,"beer_barrel":3,"gold_keg":1,"tap_scatter":1},
+  "audioTheme": "default",
+  "winThresholds": {"return":1,"win":2,"big":12,"mega":35,"epic":100,"max":8000}
+}
