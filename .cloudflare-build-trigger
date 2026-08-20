@@ -1,3 +1,3 @@
-FIT Casino transparent tuning syntax hotfix
-2026-08-20 11:16 +03:00
-RELEASE: fix Cloudflare build syntax error in transparent slot tuning worker / replace nested template-literal code injection with syntax-safe generated client and admin patches / keep per-player per-slot -50%..+100% payout tuning, visible tuned/untuned notice, 5 RUB tuning requests, admin controls, D1 storage and idempotent round adjustment / no slot mechanics changed
+FIT Casino one-shot bonus boost release
+2026-08-20 11:26 +03:00
+RELEASE: player tuning request now sends Telegram notification to casino admin with player and slot / request approval grants transparent +100% boost for exactly one purchased bonus in that same slot / regular spins do not consume boost / next FEATURE BUY doubles the native bonus payout up to slot max-win and then boost is consumed / player sees BONUS PODKRUCHEN +100% 1 PURCHASE while active / admin panel request action is one-click +100% one-bonus approval and shows active one-shot boosts / admin can also manually grant +100% one-bonus boost to selected player and slot / request button hidden on slots without bonus-buy / existing slot mechanics and persistent manual tuning remain unchanged
