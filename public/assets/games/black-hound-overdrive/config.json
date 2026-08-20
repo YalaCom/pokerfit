@@ -1,0 +1,17 @@
+{
+  "id":"black_hound_overdrive",
+  "name":"BLACK HOUND: OVERDRIVE",
+  "controller":"BLACK_HOUND_OVERDRIVE",
+  "reels":6,
+  "rows":4,
+  "mechanic":"20 LINES + CHAIN LINK + STICKY MULTIPLIER HOUNDS",
+  "feature":"TRIPLE BONUS SELECT",
+  "maxWin":12000,
+  "maxWinMultiplier":12000,
+  "wildSymbol":"hound_wild",
+  "scatterSymbol":"kennel_scatter",
+  "symbols":["alpha_head","red_hound","steel_hound","gold_collar","bone","meat","paw","chain","cash_tag","neon_ball","hound_wild","kennel_scatter"],
+  "symbolWeights":{"alpha_head":5,"red_hound":6,"steel_hound":7,"gold_collar":9,"bone":11,"meat":13,"paw":15,"chain":4,"cash_tag":17,"neon_ball":20,"hound_wild":2,"kennel_scatter":1},
+  "audioTheme":"neon",
+  "winThresholds":{"return":1,"win":2,"big":15,"mega":40,"epic":100,"max":12000}
+}

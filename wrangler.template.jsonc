@@ -1,7 +1,7 @@
 {
   "$schema":"./node_modules/wrangler/config-schema.json",
   "name":"poker-club",
-  "main":"src/casino-sweet-main.js",
+  "main":"src/casino-hound-main.js",
   "compatibility_date":"2026-08-19",
   "assets":{
     "directory":"./public",
