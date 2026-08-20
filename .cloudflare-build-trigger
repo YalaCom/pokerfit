@@ -1,3 +1,3 @@
-FIT Casino Sweet Bonanza six-slot release
-2026-08-20 00:20 +03:00
-RELEASE: add original SWEET BONANZA candy slot inspired by classic 6x5 tumbling pay-anywhere gameplay / 8+ symbols pay anywhere / 4+ lollipop scatter unlocks 10 free spins / 3+ bonus scatters retrigger +5 / candy bombs x2 x3 x5 x10 x25 x50 x100 persist through each tumble sequence then add together and multiply the sequence win / max win x21175 / original FIT Casino SVG candy art and bonus animations / existing five slots and social market systems preserved
+FIT Casino Sweet Bonanza feature-buy hotfix
+2026-08-20 08:19 +03:00
+RELEASE: enable FEATURE BUY for SWEET BONANZA / bootstrap now advertises bonusBuy true / casino UI shows SWEET BONUS purchase at 100x bet / worker handles sweet_bonanza bonus-buy server-side with request dedupe, shared balance, D1 round history, jackpot and market-index accounting / launches purchased 10 Free Spins through the existing Sweet controller / no Sweet payout mechanics or other slots changed
