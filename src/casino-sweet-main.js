@@ -1,8 +1,8 @@
 import baseWorker from "./casino-main.js";
 import {validateTelegramInitData} from "./auth.js";
-import {SWEET_BURST_CONFIG,createSweetBurstResult} from "./games/sweet-burst.js";
+import {SWEET_BURST_CONFIG,createSweetBurstResult,createSweetBurstBonusBuyResult} from "./games/sweet-burst.js";
 
-const BUILD="2026-08-20-sweet-bonanza-v1";
+const BUILD="2026-08-20-sweet-bonanza-v2-bonus-buy";
 const START_BALANCE=10_000_000;
 const MIN_BET=1_000;
 const MAX_BET=5_000_000;
@@ -14,9 +14,12 @@ export default{
     if(request.method==="GET"&&url.pathname==="/assets/assets.manifest.json")return sweetManifest(request,env);
     if(request.method==="GET"&&url.pathname==="/casino-app.js")return sweetCasinoApp(request,env);
     if(request.method==="POST"&&url.pathname==="/api/bootstrap")return sweetBootstrap(request,env);
-    if(request.method==="POST"&&url.pathname==="/api/slot/spin"){
+    if(request.method==="POST"&&(url.pathname==="/api/slot/spin"||url.pathname==="/api/slot/bonus-buy")){
       let body;try{body=await request.clone().json();}catch{return baseWorker.fetch(request,env);}
-      if(String(body?.gameId||"")===SWEET_BURST_CONFIG.id)return sweetSpin(request,env,body);
+      if(String(body?.gameId||"")===SWEET_BURST_CONFIG.id){
+        if(url.pathname==="/api/slot/bonus-buy")return sweetBonusBuy(request,env,body);
+        return sweetSpin(request,env,body);
+      }
     }
     const res=await baseWorker.fetch(request,env);
     try{
@@ -46,7 +49,10 @@ async function sweetCasinoApp(request,env){
   const res=await env.ASSETS.fetch(request);
   if(!res.ok)return res;
   const src=await res.text();
-  const patched=src.replace('./game/core/GameEngine.js','./game/core/GameEngineSweet.js');
+  const patched=src
+    .replace('./game/core/GameEngine.js','./game/core/GameEngineSweet.js')
+    .replace('if(state.current.id==="olympus_storm"){',
+      'if(state.current.id==="sweet_bonanza"){showModal(`<small>FEATURE BUY</small><h2>SWEET BONUS</h2><p>10 Free Spins. Candy Bomb multipliers ×2–×100 складываются после Tumble-серии.</p><div class="modal-grid"><button class="modal-option" data-buy="sweet"><b>${fmt(bet*100)}</b><small>100× BET</small></button></div>`);}else if(state.current.id==="olympus_storm"){');
   return new Response(patched,{status:200,headers:{"content-type":"application/javascript; charset=utf-8","cache-control":"no-store"}});
 }
 async function sweetBootstrap(request,env){
@@ -56,7 +62,7 @@ async function sweetBootstrap(request,env){
   const slots=Array.isArray(data.slots)?data.slots.slice():[];
   if(!slots.some(s=>s?.id===SWEET_BURST_CONFIG.id))slots.push({
     id:SWEET_BURST_CONFIG.id,name:SWEET_BURST_CONFIG.name,rows:SWEET_BURST_CONFIG.rows,cols:SWEET_BURST_CONFIG.reels,
-    mechanic:SWEET_BURST_CONFIG.mechanic,feature:SWEET_BURST_CONFIG.feature,bonusBuy:false,maxWin:SWEET_BURST_CONFIG.maxWin,
+    mechanic:SWEET_BURST_CONFIG.mechanic,feature:SWEET_BURST_CONFIG.feature,bonusBuy:true,maxWin:SWEET_BURST_CONFIG.maxWin,
     cover:"/assets/game-covers/sweet-burst.svg",badge:"SWEET"
   });
   return json({...data,slots});
@@ -82,6 +88,31 @@ async function sweetSpin(request,env,body){
     return json({ok:true,...response});
   }catch(error){
     console.error("sweet_bonanza",error);
+    return json({ok:false,error:String(error?.message||"SERVER_ERROR")},400);
+  }
+}
+
+async function sweetBonusBuy(request,env,body){
+  const auth=await validateTelegramInitData(body?.initData,env.TELEGRAM_BOT_TOKEN);
+  if(!auth.ok)return json({ok:false,error:auth.error},401);
+  try{
+    const player=await ensureUser(env,auth.user),bet=validateBet(body.bet),requestId=validateRequestId(body.requestId);
+    const cacheKey=`buy:${player.telegram_id}:${requestId}`,cached=await cachedResponse(env,cacheKey);
+    if(cached)return json({ok:true,...cached,duplicate:true});
+    const tier="sweet",cost=bet*SWEET_BURST_CONFIG.bonusBuyCost,outcome=createSweetBurstBonusBuyResult(bet);
+    const roundId=crypto.randomUUID(),payout=Math.max(0,Math.floor(outcome.payout));
+    const debit=await changeBalance(env,player.telegram_id,-cost,"BONUS_BUY",roundId,{gameId:SWEET_BURST_CONFIG.id,bet,tier,cost,requestId});
+    let balance=debit.balance;
+    if(payout>0)balance=(await changeBalance(env,player.telegram_id,payout,"BONUS_BUY_PAYOUT",roundId,{gameId:SWEET_BURST_CONFIG.id,bet,tier,payout,requestId})).balance;
+    await recordRound(env,player.telegram_id,`${SWEET_BURST_CONFIG.id}:bonus:${tier}`,cost,payout,roundId,outcome);
+    await addJackpot(env,Math.max(1,Math.floor(cost*.001)));
+    await syncMarketIndex(env);
+    const response={spinId:roundId,roundId,gameId:SWEET_BURST_CONFIG.id,bet,cost,tier,payout,balance,
+      multiplier:round2(payout/bet),maxWin:bet*SWEET_BURST_CONFIG.maxWin,result:outcome};
+    await cacheResponse(env,cacheKey,player.telegram_id,response);
+    return json({ok:true,...response});
+  }catch(error){
+    console.error("sweet_bonanza_bonus_buy",error);
     return json({ok:false,error:String(error?.message||"SERVER_ERROR")},400);
   }
 }
