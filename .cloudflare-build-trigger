@@ -1,3 +1,3 @@
-FIT Casino transparent slot tuning release
-2026-08-20 11:00 +03:00
-RELEASE: add transparent per-player per-slot tuning from -50% to +100% / payout modifier is applied server-side after native slot math with max-win cap, D1 ledger, round history, game totals and FIT Index correction / player sees SLOT PODKRUCHEN +N% or SLOT VYKRUTCHEN -N% only when nonzero / zero tuning shows nothing / add request button ZAKAZAT PODKRUCHKU 5 RUB and admin pending request workflow / admin can choose player, slot and exact percent, approve or reject requests, reset tuning to zero / per-round tuning application record prevents repeat credits for the same round / all seven slot mechanics remain unchanged
+FIT Casino transparent tuning syntax hotfix
+2026-08-20 11:16 +03:00
+RELEASE: fix Cloudflare build syntax error in transparent slot tuning worker / replace nested template-literal code injection with syntax-safe generated client and admin patches / keep per-player per-slot -50%..+100% payout tuning, visible tuned/untuned notice, 5 RUB tuning requests, admin controls, D1 storage and idempotent round adjustment / no slot mechanics changed
