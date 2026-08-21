@@ -32,6 +32,7 @@
   ],
   "vars":{
     "APP_NAME":"FIT CASINO",
-    "APP_URL":"https://poker-club.btctgjr4t2.workers.dev"
+    "APP_URL":"https://poker-club.btctgjr4t2.workers.dev",
+    "TELEGRAM_BOT_USERNAME":"fitpokerclubbot"
   }
 }
