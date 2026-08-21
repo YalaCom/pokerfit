@@ -1,7 +1,7 @@
 const COOKIE_NAME="fit_casino_session";
 const SESSION_DAYS=30;
 const LOGIN_TTL_MS=5*60*1000;
-const PASSWORD_ITERATIONS=120000;
+const PASSWORD_ITERATIONS=100000;
 const BOT_USERNAME_FALLBACK="fitpokerclubbot";
 const START_BALANCE=10_000_000;
 
@@ -15,6 +15,7 @@ export async function handleWebAuthRequest(request,env,url){
     if(url.pathname==="/api/web-auth/logout")return await logout(request,env);
     if(url.pathname==="/api/web-auth/telegram/start")return await telegramStart(env);
     if(url.pathname==="/api/web-auth/telegram/status")return await telegramStatus(body,env);
+    if(url.pathname==="/api/web-auth/telegram/health")return await telegramHealth(env);
     return json({ok:false,error:"NOT_FOUND"},404);
   }catch(error){console.error("WEB_AUTH",url.pathname,error);return json({ok:false,error:String(error?.message||"WEB_AUTH_FAILED")},400);}
 }
@@ -76,10 +77,12 @@ async function logout(request,env){
 }
 
 async function telegramStart(env){
+  const webhook=await ensureTelegramWebhook(env);
+  if(!webhook.ok)throw new Error("TELEGRAM_WEBHOOK_FAILED");
   const token=randomToken(18),tokenHash=await sha256Hex(token),expiresAt=new Date(Date.now()+LOGIN_TTL_MS).toISOString();
   await env.DB.prepare(`INSERT INTO casino_telegram_login_requests(token_hash,status,expires_at) VALUES(?1,'PENDING',?2)`).bind(tokenHash,expiresAt).run();
   const bot=String(env.TELEGRAM_BOT_USERNAME||BOT_USERNAME_FALLBACK).replace(/^@/,"");
-  return json({ok:true,token,deepLink:`https://t.me/${bot}?start=web_${token}`,expiresIn:Math.floor(LOGIN_TTL_MS/1000)});
+  return json({ok:true,token,deepLink:`https://t.me/${bot}?start=web_${token}`,expiresIn:Math.floor(LOGIN_TTL_MS/1000),webhookReady:true});
 }
 
 async function telegramStatus(body,env){
@@ -96,8 +99,31 @@ async function telegramStatus(body,env){
   return json({ok:true,status:String(row.status||"PENDING")});
 }
 
+async function telegramHealth(env){
+  const result=await ensureTelegramWebhook(env);
+  return json({ok:result.ok,configured:result.ok,url:result.url||null,error:result.error||null},result.ok?200:503);
+}
+
+async function ensureTelegramWebhook(env){
+  try{
+    if(!env.TELEGRAM_BOT_TOKEN)return {ok:false,error:"BOT_TOKEN_MISSING"};
+    const desired=String(env.APP_URL||"").replace(/\/+$/g,"");if(!desired)return {ok:false,error:"APP_URL_MISSING"};
+    const info=await sendBot(env,"getWebhookInfo",{});
+    const current=String(info?.result?.url||"").replace(/\/+$/g,"");
+    if(current!==desired){
+      const set=await sendBot(env,"setWebhook",{url:desired,drop_pending_updates:false});
+      if(!set?.ok)return {ok:false,error:"SET_WEBHOOK_FAILED",url:current};
+    }
+    return {ok:true,url:desired};
+  }catch(error){console.error("TELEGRAM_WEBHOOK",error);return {ok:false,error:String(error?.message||"WEBHOOK_FAILED")};}
+}
+
 async function handleStartMessage(message,env){
-  const text=String(message.text||"");const match=text.match(/^\/start(?:@\w+)?\s+web_([A-Za-z0-9_-]{16,64})$/);if(!match)return;
+  const text=String(message.text||"");const match=text.match(/^\/start(?:@\w+)?\s+web_([A-Za-z0-9_-]{16,64})$/);
+  if(!match){
+    if(/^\/start(?:@\w+)?(?:\s|$)/.test(text)){const chatId=String(message.chat?.id||message.from?.id||"");if(chatId)await sendBot(env,"sendMessage",{chat_id:chatId,text:"Для входа на сайт откройте сайт FIT Casino, нажмите «Войти через Telegram», затем вернитесь сюда и нажмите START / ЗАПУСТИТЬ по новой ссылке."});}
+    return;
+  }
   const tokenHash=await sha256Hex(match[1]),row=await env.DB.prepare(`SELECT * FROM casino_telegram_login_requests WHERE token_hash=?1 LIMIT 1`).bind(tokenHash).first();
   const chatId=String(message.chat?.id||message.from?.id||"");if(!chatId)return;
   if(!row||Date.parse(row.expires_at)<=Date.now()){await sendBot(env,"sendMessage",{chat_id:chatId,text:"Ссылка на вход истекла. Вернитесь на сайт и нажмите «Войти через Telegram» ещё раз."});return;}
@@ -145,7 +171,7 @@ export async function makeSignedInitData(user,botToken){if(!botToken)throw new E
 async function hmac(keyBytes,dataBytes){const key=await crypto.subtle.importKey("raw",keyBytes,{name:"HMAC",hash:"SHA-256"},false,["sign"]);return new Uint8Array(await crypto.subtle.sign("HMAC",key,dataBytes));}
 async function sha256Hex(value){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(value)));return bytesToHex(new Uint8Array(digest));}
 
-async function sendBot(env,method,payload){if(!env.TELEGRAM_BOT_TOKEN)throw new Error("BOT_TOKEN_MISSING");const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});if(!r.ok){console.error("TELEGRAM_API",method,r.status);return null;}return r.json();}
+async function sendBot(env,method,payload){if(!env.TELEGRAM_BOT_TOKEN)throw new Error("BOT_TOKEN_MISSING");const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload||{})});let data=null;try{data=await r.json();}catch{}if(!r.ok||data?.ok===false){console.error("TELEGRAM_API",method,r.status,data?.description||"");return null;}return data;}
 function randomToken(bytes=24){const a=new Uint8Array(bytes);crypto.getRandomValues(a);let s="";for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
 function base64UrlToBytes(value){let s=String(value).replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";const bin=atob(s),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a;}
 function bytesToHex(bytes){return [...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");}
