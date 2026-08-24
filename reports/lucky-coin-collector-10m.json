@@ -1,8 +1,0 @@
-{
-  "generatedFor":"LUCKY COIN COLLECTOR",
-  "simulator":"scripts/simulate-lucky-coin.mjs",
-  "status":"STALE_AFTER_ABSOLUTE_COIN_VALUE_CHANGE",
-  "reason":"Coin contents changed from xBET multipliers to fixed chip values 500-50000. The previous 10,000,000-spin RTP report must not be used for the new math.",
-  "previousReportInvalidatedAt":"2026-08-19",
-  "nextRun":"node scripts/simulate-lucky-coin.mjs --spins=10000000 --bet=10000"
-}
