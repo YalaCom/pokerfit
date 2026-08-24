@@ -1,3 +1,0 @@
-FIT Casino web auth recovery
-2026-08-21 10:25 +03:00
-RECOVERY: fix Cloudflare PBKDF2 iteration limit by reducing password hashing iterations from 120000 to 100000 / automatically verify and configure @fitpokerclubbot webhook to APP_URL before creating Telegram browser-login request / keep one-time deep-link login and existing-account synchronization / improve browser UI guidance that Telegram requires pressing START or ЗАПУСТИТЬ before bot can receive the deep-link payload / add sanitized Telegram webhook health endpoint / keep existing casino, slots, balances, social features and Telegram Mini App auth unchanged
